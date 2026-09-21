@@ -1,0 +1,32 @@
+{
+  "name": "Control de Obras · Las Praderas de Luján",
+  "short_name": "Obras Praderas",
+  "description": "Seguimiento de obras en Unidades Funcionales del Club Campos de Golf Las Praderas de Luján",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0C1B17",
+  "theme_color": "#0C1B17",
+  "lang": "es-AR",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
