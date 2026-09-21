@@ -1,0 +1,2493 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0C1B17">
+<title>Control de Obras · Las Praderas de Luján</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+<style>
+/* ─── TOKENS ─── */
+:root{
+  --bg:#0C1B17;--surface:#142C25;--card:#1A3A30;--border:#1F4035;
+  --border-2:#2A5544;--accent:#F5A623;--accent-d:rgba(245,166,35,.15);
+  --red:#E63946;--red-d:rgba(230,57,70,.15);--green:#3EBF7C;
+  --green-d:rgba(62,191,124,.15);--text:#F0EDE6;--text-2:#BCC9C4;
+  --muted:#6B8A7F;--r:10px;--rl:16px;
+}
+@media(prefers-color-scheme:light){:root:not([data-theme="dark"]){
+  --bg:#F2EDE8;--surface:#fff;--card:#FAFAF8;--border:#D8D0C6;
+  --border-2:#C8C0B6;--accent:#D48B00;--accent-d:rgba(212,139,0,.1);
+  --red:#C83030;--red-d:rgba(200,48,48,.1);--green:#2A9A5E;
+  --green-d:rgba(42,154,94,.1);--text:#1A2E27;--text-2:#3A5248;--muted:#7A9080;
+}}
+:root[data-theme="light"]{
+  --bg:#F2EDE8;--surface:#fff;--card:#FAFAF8;--border:#D8D0C6;
+  --border-2:#C8C0B6;--accent:#D48B00;--accent-d:rgba(212,139,0,.1);
+  --red:#C83030;--red-d:rgba(200,48,48,.1);--green:#2A9A5E;
+  --green-d:rgba(42,154,94,.1);--text:#1A2E27;--text-2:#3A5248;--muted:#7A9080;
+}
+:root[data-theme="dark"]{
+  --bg:#0C1B17;--surface:#142C25;--card:#1A3A30;--border:#1F4035;
+  --border-2:#2A5544;--accent:#F5A623;--accent-d:rgba(245,166,35,.15);
+  --red:#E63946;--red-d:rgba(230,57,70,.15);--green:#3EBF7C;
+  --green-d:rgba(62,191,124,.15);--text:#F0EDE6;--text-2:#BCC9C4;--muted:#6B8A7F;
+}
+
+/* ─── PRINT ─── */
+@media print{
+  @page{margin:18mm 14mm}
+  body{background:#fff!important;color:#111!important}
+  #header,#nav,#view-mapa,#view-detecciones,#view-ajustes,
+  #btn-copy,#btn-pdf,.sec-title,#report-actions{display:none!important}
+  #app,#content{height:auto!important;overflow:visible!important}
+  #view-informe{display:block!important;padding:0!important}
+  #print-hdr{display:block!important}
+  .card{break-inside:avoid;box-shadow:none!important;border:1px solid #ccc!important;background:#fff!important;margin-bottom:12px!important}
+  .card-title{color:#1B5E20!important}
+  #rout{font-family:'Courier New',monospace;white-space:pre-wrap;font-size:9.5px;line-height:1.45;color:#111!important;background:#fff!important;border:none!important;padding:0!important}
+}
+
+/* ─── BASE ─── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:15px;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:15px}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:2px}
+
+/* ─── SHELL ─── */
+#app{display:flex;flex-direction:column;height:100%;overflow:hidden}
+
+/* ─── HEADER ─── */
+#header{flex-shrink:0;height:52px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:10px;z-index:1001}
+#h-logo{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:20px;color:var(--accent);white-space:nowrap}
+#h-sub{font-size:10px;color:var(--muted);font-weight:500;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#gps-wrap{display:flex;align-items:center;gap:5px;cursor:pointer;flex-shrink:0;padding:4px 8px;border-radius:20px;border:1px solid var(--border);transition:border-color .3s}
+#gps-wrap:hover{border-color:var(--green)}
+#gps-dot{width:8px;height:8px;border-radius:50%;background:var(--red);flex-shrink:0;transition:background .4s}
+#gps-dot.on{background:var(--green);animation:glow 2s infinite}
+@keyframes glow{0%,100%{opacity:1}50%{opacity:.5}}
+#gps-txt{font-size:10px;color:var(--muted)}
+#theme-btn{background:none;border:1px solid var(--border);color:var(--muted);width:34px;height:34px;border-radius:8px;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+/* ─── NAV ─── */
+#nav{flex-shrink:0;height:52px;background:var(--surface);border-top:1px solid var(--border);display:flex;position:relative;z-index:10}
+.ntab{flex:1;background:none;border:none;color:var(--muted);font-size:10px;font-weight:600;letter-spacing:.04em;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:color .2s;text-transform:uppercase}
+.ntab .ni{font-size:20px}
+.ntab.on{color:var(--accent);border-top:2px solid var(--accent)}
+
+/* ─── CONTENT ─── */
+#content{flex:1;overflow:hidden;position:relative}
+.view{display:none;height:100%;overflow-y:auto;padding:12px}
+.view.on{display:block}
+.sec-title{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:8px 0 12px}
+
+/* ─── MAP VIEW ─── */
+#view-mapa{padding:0;display:none;flex-direction:column}
+#view-mapa.on{display:flex}
+#map-div{flex:1;width:100%;min-height:0;z-index:1}
+
+/* ─── Leaflet overrides ─── */
+.leaflet-control-layers{border:1px solid var(--border)!important;background:var(--surface)!important;color:var(--text)!important;border-radius:8px!important;font-family:'Inter',sans-serif!important}
+.leaflet-control-layers label{color:var(--text)!important}
+.leaflet-bar a{background:var(--surface)!important;color:var(--text)!important;border-color:var(--border)!important}
+.leaflet-bar a:hover{background:var(--card)!important}
+.uf-permanent-label{background:transparent!important;border:none!important;box-shadow:none!important;color:#fff!important;font-size:11px!important;font-weight:800!important;text-shadow:0 0 3px #000, 0 0 3px #000, 0 0 3px #000!important;padding:0!important;font-family:'Inter',sans-serif!important}
+.leaflet-popup-content-wrapper{background:var(--card)!important;color:var(--text)!important;border:1px solid var(--border)!important;border-radius:12px!important;box-shadow:0 8px 32px rgba(0,0,0,.4)!important}
+.leaflet-popup-tip{background:var(--card)!important}
+
+/* ─── MAP BAR ─── */
+#map-bar{flex-shrink:0;height:62px;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 14px;gap:12px}
+#uf-info{flex:1;min-width:0}
+#uf-label{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+#uf-val{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#btn-reg{background:var(--red);color:#fff;border:none;border-radius:12px;padding:0 22px;height:42px;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:17px;letter-spacing:.06em;flex-shrink:0;transition:transform .1s}
+#btn-reg:active{transform:scale(.95)}
+
+/* ─── FILTER FAB ─── */
+#filter-fab{position:absolute;top:10px;left:10px;z-index:1000;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600;display:none;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+#filter-badge{background:var(--red);color:#fff;font-size:10px;border-radius:10px;padding:1px 6px;display:none}
+#filter-badge.on{display:inline-block}
+
+/* ─── FILTER PANEL ─── */
+#filter-panel{position:absolute;bottom:62px;left:0;right:0;z-index:1000;background:var(--surface);border-top:1px solid var(--border);padding:16px;transform:translateY(100%);transition:transform .3s;max-height:60%;overflow-y:auto;box-shadow:0 -4px 20px rgba(0,0,0,.3);display:none}
+#filter-panel.open{transform:translateY(0)}
+#filter-panel h3{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.filter-sep{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:12px 0 8px}
+.fpill-row{display:flex;flex-wrap:wrap;gap:6px}
+.fpill{background:var(--card);border:1px solid var(--border);color:var(--text-2);border-radius:20px;padding:5px 14px;font-size:13px;font-weight:600}
+.fpill.on{background:var(--accent-d);border-color:var(--accent);color:var(--accent)}
+.fdate-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#wt-filter-list{display:flex;flex-wrap:wrap;gap:6px}
+#filter-actions{display:flex;gap:8px;margin-top:14px}
+
+/* ─── CARDS / FORM ─── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:12px}
+.card-title{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--accent);margin-bottom:12px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:12px;font-weight:600;letter-spacing:.05em;color:var(--muted);text-transform:uppercase;margin-bottom:6px}
+.field input,.field select,.field textarea{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);transition:border-color .2s}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--accent)}
+.field textarea{min-height:72px;resize:vertical;line-height:1.5}
+
+/* ─── BUTTONS ─── */
+.bp,.bs,.bd{width:100%;border:none;border-radius:10px;padding:12px 16px;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;transition:opacity .15s}
+.bp,.bs,.bd{cursor:pointer}
+.bp{background:var(--accent);color:#0C1B17}
+.bs{background:var(--surface);border:1px solid var(--border);color:var(--text-2)}
+.bd{background:var(--red-d);border:1px solid var(--red-d);color:var(--red)}
+.bp:active,.bs:active,.bd:active{opacity:.8}
+.fl{display:flex}
+button.mcb{background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:8px;width:36px;height:36px;font-size:18px;display:flex;align-items:center;justify-content:center}
+
+/* ─── SEARCH BAR ─── */
+.sbar{display:flex;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:0 12px;margin-bottom:12px;gap:8px}
+.sbar input{flex:1;background:none;border:none;padding:10px 0;color:var(--text)}
+.sbar input:focus{outline:none}
+.si{font-size:16px;color:var(--muted)}
+
+/* ─── STAT ROW ─── */
+.srow{display:flex;gap:8px;margin-bottom:14px}
+.stat{flex:1;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:12px;text-align:center}
+.sv{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:800;color:var(--accent)}
+.sl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-top:2px}
+
+/* ─── DET CARD ─── */
+.det-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:8px}
+.det-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.det-uf{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--text)}
+.det-wt{font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-d);padding:2px 8px;border-radius:12px}
+.det-date{font-size:11px;color:var(--muted)}
+.det-notes{font-size:13px;color:var(--text-2);margin-top:4px}
+.det-img{width:100%;max-height:180px;object-fit:cover;border-radius:8px;margin-top:8px;display:none}
+.det-del{background:none;border:none;color:var(--muted);font-size:18px;padding:0 4px;line-height:1}
+
+/* ─── REPORT ─── */
+#rout{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px;font-family:'Courier New',monospace;font-size:12px;white-space:pre-wrap;line-height:1.6;color:var(--text-2);display:none;margin-top:8px}
+#report-actions{display:none;gap:8px;margin-top:8px}
+#report-actions .bp,#report-actions .bs{margin:0}
+
+/* ─── TAGS ─── */
+.tlist{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.tag{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:13px}
+.tdel{background:none;border:none;color:var(--muted);font-size:16px;line-height:1;padding:0}
+
+/* ─── MODAL ─── */
+#mdrop{position:fixed;inset:0;z-index:9999;background:rgba(5,15,12,.6);display:none;align-items:flex-end;backdrop-filter:blur(4px)}
+#mdrop.open{display:flex}
+#mdrop-box{background:var(--surface);border-radius:var(--rl) var(--rl) 0 0;width:100%;max-height:90dvh;overflow-y:auto;padding:20px 16px 32px}
+#mdrop-title{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--accent);margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
+#sel-badge{display:flex;align-items:center;gap:10px;background:var(--accent-d);border:1px solid var(--accent);border-radius:10px;padding:10px 14px;margin-bottom:12px}
+.sbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.sbn{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--accent)}
+#uf-drop{outline:none;cursor:pointer}
+#uf-drop option{padding:6px 10px;font-size:15px}
+#uf-drop option:checked{background:var(--accent-d);color:var(--accent)}
+#photo-img{width:100%;max-height:200px;object-fit:cover;border-radius:10px;margin-top:8px;display:none}
+
+/* ─── CSV MAPPER ─── */
+#csv-mapper{display:none;margin-top:14px}
+#csv-mapper h4{font-size:14px;font-weight:700;margin-bottom:10px;color:var(--text-2)}
+.mapper-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+@media(max-width:480px){.mapper-grid{grid-template-columns:1fr}}
+#csv-preview{overflow-x:auto;margin-bottom:12px}
+#csv-preview table{border-collapse:collapse;font-size:11px;width:100%;min-width:400px}
+#csv-preview th,#csv-preview td{border:1px solid var(--border);padding:4px 8px;text-align:left;white-space:nowrap}
+#csv-preview th{background:var(--surface);font-weight:700;color:var(--muted)}
+
+/* ─── TOAST ─── */
+#toast-msg{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--card);border:1px solid var(--border);border-radius:20px;padding:10px 20px;font-size:14px;font-weight:600;z-index:99999;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.3)}
+#toast-msg.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast-msg.ok{border-color:var(--green);color:var(--green)}
+#toast-msg.err{border-color:var(--red);color:var(--red)}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- HEADER -->
+<header id="header">
+  <div id="h-logo">🏗 OBRAS</div>
+  <div id="h-sub">Las Praderas de Luján</div>
+  <div id="gps-wrap" onclick="requestGPS()" title="Toca para activar GPS">
+    <div id="gps-dot"></div>
+    <span id="gps-txt">Toca para GPS</span>
+  </div>
+  <button id="theme-btn" onclick="toggleTheme()">◐</button>
+</header>
+
+<!-- CONTENT -->
+<div id="content">
+
+  <!-- MAPA -->
+  <div id="view-mapa" class="view on">
+    <div id="map-div"></div>
+    <button id="filter-fab" onclick="toggleFilter()">🎚 Filtrar <span id="filter-badge"></span></button>
+    <div id="filter-panel">
+      <h3>Filtros <button class="mcb" onclick="toggleFilter()" style="box-shadow:none">✕</button></h3>
+      <div class="filter-sep">Período rápido</div>
+      <div class="fpill-row">
+        <button class="fpill" onclick="quickFilter('today')">Hoy</button>
+        <button class="fpill" onclick="quickFilter('week')">Esta semana</button>
+        <button class="fpill" onclick="quickFilter('month')">Este mes</button>
+        <button class="fpill" onclick="quickFilter('all')">Todo</button>
+      </div>
+      <div class="filter-sep">Rango de fechas</div>
+      <div class="fdate-row">
+        <div class="field"><label>Desde</label><input type="date" id="ff-from"></div>
+        <div class="field"><label>Hasta</label><input type="date" id="ff-to"></div>
+      </div>
+      <div class="filter-sep">Tipo de obra</div>
+      <div id="wt-filter-list"></div>
+      <div id="filter-actions">
+        <button class="bs" style="margin:0;flex:1" onclick="clearFilters()">✕ Limpiar</button>
+        <button class="bp" style="margin:0;flex:1" onclick="applyFilters()">Aplicar</button>
+      </div>
+    </div>
+    <div id="map-bar">
+      <div id="uf-info">
+        <div id="uf-label">UF DETECTADA</div>
+        <div id="uf-val">—</div>
+      </div>
+      <button id="btn-edit-uf" data-perm="edit" onclick="openEditUF()" title="Editar datos de esta UF"
+        style="background:var(--surface);border:1px solid var(--border);color:var(--text-2);border-radius:12px;padding:0 14px;height:42px;font-size:18px;flex-shrink:0;display:none">✏️</button>
+      <button id="btn-reg" data-perm="edit" onclick="openModal()">+ REGISTRAR</button>
+    </div>
+  </div>
+
+  <!-- DETECCIONES -->
+  <div id="view-detecciones" class="view">
+    <div class="sec-title">Detecciones</div>
+    <div id="det-stats" class="srow" style="display:none">
+      <div class="stat"><div class="sv" id="st-total">0</div><div class="sl">Total</div></div>
+      <div class="stat"><div class="sv" id="st-today">0</div><div class="sl">Hoy</div></div>
+      <div class="stat"><div class="sv" id="st-ufs">0</div><div class="sl">UFs con obra</div></div>
+    </div>
+    <div class="sbar"><span class="si">🔍</span><input type="text" id="search-input" placeholder="Buscar por UF o tipo…" oninput="renderDets()"></div>
+    <div id="dets-list"></div>
+  </div>
+
+  <!-- INFORME -->
+  <div id="view-informe" class="view">
+    <div id="print-hdr" style="display:none;text-align:center;padding-bottom:12px;border-bottom:2px solid #1B5E20;margin-bottom:16px">
+      <div style="font-size:22px;font-weight:800;color:#1B5E20">🏗 Club Campos de Golf Las Praderas de Luján</div>
+      <div style="font-size:13px;color:#555;margin-top:2px">Control de Obras en Unidades Funcionales</div>
+    </div>
+    <div class="sec-title">Informes</div>
+    <div class="card" style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="bp" style="flex:1;min-width:120px" onclick="genReport('today')">📅 Hoy</button>
+      <button class="bp" style="flex:1;min-width:120px" onclick="genReport('week')">📅 Esta semana</button>
+      <button class="bp" style="flex:1;min-width:120px" onclick="genReport('month')">📅 Este mes</button>
+      <button class="bp" style="flex:1;min-width:120px" onclick="genReport('all')">📋 Todo</button>
+    </div>
+    <div class="card">
+      <div class="card-title">📆 Período personalizado</div>
+      <div style="display:flex;gap:8px">
+        <div class="field" style="flex:1;margin:0"><label>Desde</label><input type="date" id="r-from"></div>
+        <div class="field" style="flex:1;margin:0"><label>Hasta</label><input type="date" id="r-to"></div>
+      </div>
+      <button class="bp" style="margin-top:10px" onclick="genReport('range')">Generar informe</button>
+    </div>
+    <div id="rout" style="display:none"></div>
+    <div id="report-actions" style="display:none;gap:8px;margin-top:8px">
+      <button id="btn-pdf" class="bp" style="margin:0;flex:1" onclick="printReport()"><span>📄</span>Exportar PDF</button>
+    </div>
+  </div>
+
+  <!-- AJUSTES -->
+  <div id="view-ajustes" class="view">
+    <div class="sec-title">Ajustes</div>
+
+    <div class="card" id="install-card" style="display:none; border-color: var(--accent);">
+      <div class="card-title" style="display:flex; align-items:center; gap:8px;"><span>📱</span> Instalar Aplicación</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.6">
+        Instalá esta herramienta en tu celular (Android/iOS) para acceder rápidamente y usarla a pantalla completa como una app nativa.
+      </p>
+      <button id="btn-install-app" class="bp">Instalar App en este dispositivo</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🗺️ Importar mapa</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.6">
+        Importá los polígonos de las unidades funcionales desde un archivo <strong style="color:var(--text-2)">.kml</strong> o desde un <strong style="color:var(--text-2)">.geojson</strong> (QGIS, Google Maps, etc.).<br>
+        <em style="font-size:12px">Si tenés .kmz → renombralo a .zip → extraé el .kml interno.</em>
+      </p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <label for="kml-file"      class="bp fl" style="margin:0;justify-content:center;font-size:14px">📁 KML</label>
+        <label for="map-json-file" class="bs fl" style="margin:0;justify-content:center;font-size:14px">🌐 GeoJSON</label>
+      </div>
+      <input type="file" id="kml-file"      accept=".kml"           style="display:none" onchange="loadKML(this)">
+      <input type="file" id="map-json-file" accept=".json,.geojson" style="display:none" onchange="loadMapJSON(this)">
+      <button class="bs" onclick="exportMapJSON()" style="margin-top:4px"><span>📤</span>Exportar mapa (GeoJSON)</button>
+      <button class="bd" onclick="clearMap()" style="margin-top:4px"><span>🗑️</span>Borrar mapa cargado</button>
+      <div id="kml-status" style="font-size:13px;color:var(--muted);text-align:center;margin-top:8px;min-height:18px"></div>
+
+      <!-- GeoJSON property mapper -->
+      <div id="geo-mapper" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--text-2)">Mapear propiedades del GeoJSON</div>
+        <div class="field">
+          <label>¿Cuál propiedad es el número / nombre de UF?</label>
+          <select id="geo-uf-prop" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text)"></select>
+        </div>
+        <div class="filter-sep" style="margin-bottom:8px">Vista previa (primeras 4 filas)</div>
+        <div id="geo-preview" style="overflow-x:auto;margin-bottom:12px;font-size:11px"></div>
+        <div style="display:flex;gap:8px">
+          <button class="bs" style="margin:0;flex:1" onclick="cancelGeoMapper()">Cancelar</button>
+          <button class="bp" style="margin:0;flex:1" onclick="applyGeoMapper()">Importar mapa</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" data-perm="import">
+      <div class="card-title">📊 Importar historial desde Excel</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.6">
+        En Excel → <em>Archivo → Guardar como → CSV UTF-8</em>. Podés seleccionar uno o varios archivos, o elegir una carpeta completa — el mismo mapeo se aplica a todos.
+      </p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <label for="csv-file"   class="bp fl" style="margin:0;justify-content:center;font-size:13px">📄 Archivo(s) CSV</label>
+        <label for="csv-folder" class="bs fl" style="margin:0;justify-content:center;font-size:13px">📁 Carpeta completa</label>
+      </div>
+      <!-- multiple: varios archivos con Ctrl/Shift -->
+      <input type="file" id="csv-file"   accept=".csv,.txt" multiple          style="display:none" onchange="prepareCSVBatch(this.files)">
+      <!-- webkitdirectory: carpeta entera, filtra .csv/.txt -->
+      <input type="file" id="csv-folder" accept=".csv,.txt" webkitdirectory   style="display:none" onchange="prepareCSVBatch(this.files)">
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--muted)">
+        <span style="white-space:nowrap">Codificación:</span>
+        <select id="csv-enc" style="flex:1;font-size:12px;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text)">
+          <option value="UTF-8">UTF-8 (recomendado)</option>
+          <option value="ISO-8859-1">Latin-1 / Windows (si hay tildes raras)</option>
+        </select>
+      </div>
+      <div id="csv-batch-info" style="display:none;margin-top:10px;background:var(--accent-d);border:1px solid var(--accent);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--accent);font-weight:600"></div>
+      <div id="csv-mapper" style="display:none">
+        <div style="font-size:13px;font-weight:700;margin:14px 0 10px;color:var(--text-2)">Mapear columnas — se aplicará a <span id="csv-file-count">todos los archivos</span></div>
+        <div class="mapper-grid">
+          <div class="field"><label>Columna: UF</label><select id="map-uf" onchange="_updateUFPreview()"><option value="">— no incluida —</option></select><span id="uf-col-preview" style="font-size:11px;color:var(--muted);margin-top:3px;display:block"></span></div>
+          <div class="field"><label>Columna: Tipo de obra</label><select id="map-wt" onchange="_updateWTPreview()"><option value="">— no incluida —</option></select><span id="wt-col-preview" style="font-size:11px;color:var(--muted);margin-top:3px;display:block"></span></div>
+          <div class="field"><label>Columna: Fecha</label><select id="map-date" onchange="_updateDatePreview()"><option value="">— no incluida —</option></select><span id="date-preview" style="font-size:11px;color:var(--muted);margin-top:3px;display:block"></span></div>
+          <div class="field"><label>Columna: Observaciones</label><select id="map-notes"><option value="">— no incluida —</option></select></div>
+          <div class="field"><label>Columna: Lat GPS</label><select id="map-lat"><option value="">— no incluida —</option></select></div>
+          <div class="field"><label>Columna: Lon GPS</label><select id="map-lon"><option value="">— no incluida —</option></select></div>
+        </div>
+        <div class="filter-sep" style="margin-bottom:8px">Vista previa — <span id="csv-preview-fname" style="color:var(--accent)"></span></div>
+        <div id="csv-preview"></div>
+        <div id="csv-filedate-block" style="display:none;background:rgba(62,191,124,.10);border:1px solid var(--green);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--green);margin-top:8px;line-height:1.6">
+          <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;color:inherit">
+            <input type="checkbox" id="csv-use-file-date" style="accent-color:var(--green);width:16px;height:16px;margin-top:2px">
+            <span><strong>📅 Usar fecha del reporte (del nombre del archivo) como fecha de registro</strong><br>
+            Ideal para reportes mensuales: cada archivo genera registros separados por mes aunque la UF tenga la misma fecha de inicio. Activa esto si tenés varios CSV de meses distintos.</span>
+          </label>
+          <div id="csv-filedate-hint" style="margin-top:6px;font-size:11px;color:var(--muted)"></div>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-2);margin:10px 0 4px;cursor:pointer">
+          <input type="checkbox" id="csv-replace-dups" style="accent-color:var(--accent);width:16px;height:16px">
+          Reemplazar duplicados existentes
+        </label>
+        <div id="csv-clear-hint" style="display:none;background:rgba(220,50,50,.12);border:1px solid #c0392b;border-radius:8px;padding:10px 14px;font-size:12px;color:#e74c3c;margin-top:8px;line-height:1.5"></div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="bs" style="margin-bottom:0;flex:1" onclick="cancelCSV()">Cancelar</button>
+          <button id="btn-csv-clear" class="bs" style="margin-bottom:0;flex:1;display:none;border-color:#c0392b;color:#e74c3c;font-weight:700" onclick="importCSVFresh()">🗑 Borrar todo e importar</button>
+          <button class="bp" style="flex:1" onclick="importCSV()">➕ Importar (agregar)</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🏷️ Tipos de obra</div>
+      <div id="wt-list" class="tlist"></div>
+      <div class="field" style="display:flex;gap:8px;margin-bottom:0">
+        <input type="text" id="nwt" placeholder="Nuevo tipo de obra…" style="flex:1;border-radius:8px;border:1px solid var(--border);padding:9px 12px;background:var(--surface);color:var(--text)">
+        <button class="bp" style="width:auto;margin:0;padding:0 18px" onclick="addWT()">＋</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">💾 Datos (En memoria)</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px"><span id="s-count">0</span> detecciones en esta sesión. Los datos se perderán al recargar. Exportá los datos si deseas conservarlos o contactame para añadir almacenamiento en la nube.</p>
+      <button class="bs" onclick="exportJSON()"><span>📤</span>Exportar datos (JSON)</button>
+      <button class="bs" onclick="document.getElementById('import-file').click()"><span>📥</span>Importar datos (JSON)</button>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importJSON(this)">
+      <button class="bd" data-perm="deleteAll" onclick="clearAll()"><span>🗑️</span>Borrar todos los datos</button>
+      <button class="bs" data-perm="deleteAll" onclick="purgePhantomDates()" style="border-color:#e67e22;color:#e67e22"><span>🧹</span>Limpiar registros con fecha incorrecta (hoy)</button>
+    </div>
+
+    <div class="card" data-perm="manageUsers">
+      <div class="card-title">👥 Usuarios y permisos (En memoria)</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.6">
+        Crea usuarios temporales en esta sesión para probar el sistema de permisos.
+      </p>
+      <div id="users-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px"></div>
+      <div style="border-top:1px solid var(--border);padding-top:14px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--text-2)">＋ Nuevo usuario</div>
+        <div class="field">
+          <label>Nombre</label>
+          <input type="text" id="nu-name" placeholder="Nombre y apellido" style="width:100%;border-radius:8px;border:1px solid var(--border);padding:9px 12px;background:var(--surface);color:var(--text)">
+        </div>
+        <div class="field">
+          <label>PIN (4+ caracteres)</label>
+          <input type="password" id="nu-pin" placeholder="PIN" style="width:100%;border-radius:8px;border:1px solid var(--border);padding:9px 12px;background:var(--surface);color:var(--text)">
+        </div>
+        <div id="nu-perms" style="display:flex;flex-direction:column;gap:6px;margin:10px 0"></div>
+        <button class="bp" style="margin-top:4px" onclick="addUser()">Crear usuario</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /content -->
+
+<!-- NAV -->
+<nav id="nav">
+  <button class="ntab on" onclick="showV('mapa',this)"><span class="ni">🗺️</span>Mapa</button>
+  <button class="ntab" onclick="showV('detecciones',this)"><span class="ni">📋</span>Detecciones</button>
+  <button class="ntab" onclick="showV('informe',this)"><span class="ni">📄</span>Informe</button>
+  <button class="ntab" onclick="showV('ajustes',this)"><span class="ni">⚙️</span>Ajustes</button>
+  <div id="role-badge" style="font-size:11px;color:var(--muted);padding:0 8px;cursor:pointer;white-space:nowrap;display:flex;align-items:center" onclick="_showLock()"></div>
+</nav>
+
+<!-- LOCK SCREEN -->
+<div id="lock-screen" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(5,20,14,0.82);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:24px">
+  <div style="text-align:center">
+    <div style="font-size:52px;margin-bottom:8px">🏌️</div>
+    <div style="font-size:24px;font-weight:800;color:#fff;letter-spacing:.04em">Club Las Praderas</div>
+    <div style="font-size:14px;color:rgba(255,255,255,.65);margin-top:4px;letter-spacing:.06em;text-transform:uppercase">Control de Obras</div>
+  </div>
+  <div style="width:100%;max-width:320px;display:flex;flex-direction:column;gap:10px">
+    <div style="font-size:13px;color:rgba(255,255,255,.8);text-align:center" id="lock-msg">Ingresá el PIN de administrador para editar, o continuá como visitante (solo lectura).</div>
+    <!-- PIN block (shown when PIN is configured) -->
+    <div id="lock-pin-block" style="display:flex;flex-direction:column;gap:10px">
+      <input type="password" id="lock-pin-input" placeholder="Tu PIN personal"
+        style="border-radius:10px;border:1px solid rgba(255,255,255,.25);padding:12px 16px;background:rgba(255,255,255,.10);color:#fff;font-size:16px;text-align:center;letter-spacing:4px"
+        onkeydown="if(event.key==='Enter')checkPIN()">
+      <button class="bp" style="font-size:16px;padding:14px" onclick="checkPIN()">🔑 Entrar</button>
+      <button class="bs" style="font-size:14px;opacity:.85" onclick="enterViewer()">👁 Continuar como visitante (solo lectura)</button>
+    </div>
+    <!-- No-PIN block (shown when no PIN is configured) -->
+    <div id="lock-nopin-block" style="display:none;flex-direction:column;gap:10px">
+      <button class="bp" style="font-size:16px;padding:14px" onclick="enterAdmin()">🔑 Entrar como administrador</button>
+      <button class="bs" style="font-size:14px;opacity:.85" onclick="enterViewer()">👁 Continuar como visitante (solo lectura)</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: REGISTRAR OBRA -->
+<div id="mdrop">
+  <div id="mdrop-box">
+    <div id="mdrop-title">
+      <span>Registrar obra</span>
+      <button class="mcb" onclick="closeModal()" style="box-shadow:none">✕</button>
+    </div>
+    <div class="filter-sep">Unidad Funcional</div>
+    <div class="field" style="margin-bottom:8px">
+      <input type="text" id="uf-search" placeholder="🔍 Buscar UF por número…" oninput="filterUFDrop()" autocomplete="off"
+        style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:15px">
+    </div>
+    <div class="field" style="margin-bottom:10px">
+      <select id="uf-drop" size="5" onchange="selUFDrop()"
+        style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:15px;padding:4px 0;min-height:110px">
+      </select>
+    </div>
+    <div id="sel-badge"><span>📍</span><div><div class="sbl">UF seleccionada</div><div class="sbn" id="sel-name">—</div></div></div>
+    <div class="field"><label>Tipo de obra</label><select id="wt-sel"></select></div>
+    <div class="field"><label>Observaciones</label><textarea id="obs" placeholder="Estado, materiales, avance…"></textarea></div>
+    <div class="field">
+      <label>Foto</label>
+      <img id="photo-img" alt="Foto de obra">
+      <input type="file" id="photo-in" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(this)">
+      <button class="bs" style="margin-top:8px" onclick="document.getElementById('photo-in').click()">📷 Sacar foto</button>
+    </div>
+    <button class="bp" onclick="saveDetection()">✅ Guardar detección</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast-msg"></div>
+
+<!-- MODAL: EDITAR DATOS DE UF -->
+<div id="edit-uf-drop" style="position:fixed;inset:0;z-index:9999;background:rgba(5,15,12,.6);display:none;align-items:flex-end;backdrop-filter:blur(4px)">
+  <div style="background:var(--surface);border-radius:var(--rl) var(--rl) 0 0;width:100%;max-height:90dvh;overflow-y:auto;padding:20px 16px 36px">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--accent);margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">
+      <span>✏️ Editar datos de UF</span>
+      <button class="mcb" onclick="closeEditUF()" style="box-shadow:none">✕</button>
+    </div>
+
+    <!-- Nombre/identificador de la UF -->
+    <div class="field">
+      <label>Nombre / Número de UF</label>
+      <input type="text" id="edit-uf-name" style="width:100%;background:var(--card);border:1px solid var(--accent);border-radius:8px;padding:10px 12px;color:var(--text);font-size:16px;font-weight:700">
+    </div>
+
+    <!-- Propiedades editables -->
+    <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 0 8px">Propiedades del polígono</div>
+    <div id="edit-props-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px"></div>
+
+    <!-- Agregar nueva propiedad -->
+    <button onclick="addEditPropRow()" class="bs" style="margin-bottom:14px;font-size:13px">＋ Agregar campo</button>
+
+    <!-- Acciones -->
+    <div style="display:flex;gap:8px">
+      <button class="bs" style="margin:0;flex:1" onclick="closeEditUF()">Cancelar</button>
+      <button class="bp" style="margin:0;flex:1" onclick="saveEditUF()">💾 Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOM ALERTS & CONFIRMS -->
+<div id="custom-modal-overlay" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px);">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;width:100%;max-width:400px;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+    <div id="custom-modal-msg" style="margin-bottom:20px;font-size:15px;white-space:pre-wrap;color:var(--text);line-height:1.5;"></div>
+    <input type="text" id="custom-modal-input" style="display:none;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:15px;margin-bottom:20px;">
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button id="custom-modal-btn-no" class="bs" style="margin:0;width:auto;display:none;">Cancelar</button>
+      <button id="custom-modal-btn-yes" class="bp" style="margin:0;width:auto;padding-left:24px;padding-right:24px;">Aceptar</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /app -->
+
+<script>
+/* ═══════════════════════════════════════════
+   CUSTOM MODALS (Reemplazo de alert/confirm/prompt)
+═══════════════════════════════════════════ */
+function showDialog(opts) {
+  const overlay = document.getElementById('custom-modal-overlay');
+  document.getElementById('custom-modal-msg').textContent = opts.msg || '';
+
+  const input = document.getElementById('custom-modal-input');
+  if (opts.type === 'prompt') {
+    input.style.display = 'block';
+    input.value = '';
+    setTimeout(() => input.focus(), 100);
+  } else {
+    input.style.display = 'none';
+  }
+
+  const btnNo = document.getElementById('custom-modal-btn-no');
+  if (opts.type === 'confirm' || opts.type === 'prompt') {
+    btnNo.style.display = 'block';
+    btnNo.onclick = () => { overlay.style.display = 'none'; if(opts.onCancel) opts.onCancel(); };
+  } else {
+    btnNo.style.display = 'none';
+  }
+
+  const btnYes = document.getElementById('custom-modal-btn-yes');
+  btnYes.textContent = opts.yesText || 'Aceptar';
+  btnYes.onclick = () => {
+    overlay.style.display = 'none';
+    if(opts.onConfirm) {
+        opts.onConfirm(opts.type === 'prompt' ? input.value : null);
+    }
+  };
+
+  overlay.style.display = 'flex';
+}
+
+function customAlert(msg) {
+    showDialog({ type: 'alert', msg: msg });
+}
+function customConfirm(msg, onConfirm, onCancel) {
+    showDialog({ type: 'confirm', msg: msg, onConfirm: onConfirm, onCancel: onCancel });
+}
+function customPrompt(msg, onConfirm) {
+    showDialog({ type: 'prompt', msg: msg, onConfirm: onConfirm });
+}
+
+
+/* ═══════════════════════════════════════════
+   STATE (In-Memory per requirements)
+═══════════════════════════════════════════ */
+const S = {
+  units: [], detections: [], workTypes: ['Ampliación','Reforma','Obra nueva','Pozo absorbente','Cambio cubierta','Solado','Terminaciones'],
+  users: [], // {id, name, pinHash, perms:{edit,import,deleteAll,sync,manageUsers}}
+  filters: {active:false, from:'', to:'', types:[]},
+  selectedUnit: null, currentUnit: null, pos: null,
+  map: null, polyLayers: {}, gpsMarker: null, gpsRing: null,
+  csvHeaders: [], csvRows: [],
+  geoRaw: [], geoPropKeys: [], geoUfKey: null,
+  batchFiles: [], batchTexts: [],
+};
+let _gpsWatchId = null;
+let _toastT = null;
+
+/* ═══════════════════════════════════════════
+   THEME
+═══════════════════════════════════════════ */
+function applyTheme(){const t='dark';document.documentElement.setAttribute('data-theme',t);}
+function toggleTheme(){const cur=document.documentElement.getAttribute('data-theme')||'dark';const nxt=cur==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',nxt);updateLeafletTheme();}
+function updateLeafletTheme(){if(!S.map)return;}
+function isDark(){const a=document.documentElement.getAttribute('data-theme');return a?a==='dark':window.matchMedia('(prefers-color-scheme:dark)').matches;}
+
+/* ═══════════════════════════════════════════
+   NAV
+═══════════════════════════════════════════ */
+function showV(name, btn){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+  document.querySelectorAll('.ntab').forEach(b=>b.classList.remove('on'));
+  const v=document.getElementById('view-'+name);
+  if(v){v.classList.add('on');}
+  if(btn)btn.classList.add('on');
+  else{const tabs=document.querySelectorAll('.ntab');const idx={'mapa':0,'detecciones':1,'informe':2,'ajustes':3}[name];if(idx!==undefined)tabs[idx].classList.add('on');}
+  if(name==='mapa'){
+    if(!S.map)initLeafletMap();
+    setTimeout(()=>{S.map&&S.map.invalidateSize();},100);
+    renderPolygons();
+    document.getElementById('filter-fab').style.display=S.units.length?'flex':'none';
+  }
+  if(name==='detecciones')renderDets();
+}
+
+/* ═══════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════ */
+function toast(msg,type='ok'){
+  const el=document.getElementById('toast-msg');
+  el.textContent=msg;el.className='show '+(type||'');
+  clearTimeout(_toastT);_toastT=setTimeout(()=>{el.className='';},2500);
+}
+
+/* ═══════════════════════════════════════════
+   LEAFLET MAP
+═══════════════════════════════════════════ */
+function initLeafletMap(){
+  if(S.map)return;
+
+  // Create map centered on Las Praderas de Luján area
+  S.map = L.map('map-div', {
+    center: [-34.575, -59.05],
+    zoom: 15,
+    zoomControl: false,
+    attributionControl: true
+  });
+
+  // Tile layers
+  const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a>',
+    maxZoom: 20
+  });
+
+  const satellite = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    {attribution:'© ESRI World Imagery', maxZoom:20}
+  );
+
+  const hybridLabels = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+    {attribution:'', maxZoom:20, opacity:0.8}
+  );
+
+  // Default: satellite
+  satellite.addTo(S.map);
+
+  // Layer control
+  L.control.layers(
+    {'🛰️ Satélite': satellite, '🗺️ Calles (OSM)': osm},
+    {'🏷️ Etiquetas': hybridLabels},
+    {position:'topright', collapsed:false}
+  ).addTo(S.map);
+
+  // Zoom control
+  L.control.zoom({position:'topright'}).addTo(S.map);
+
+  // Attribution
+  S.map.attributionControl.setPrefix('');
+}
+
+function renderPolygons(){
+  if(!S.map) return;
+
+  // Remove existing polygon layers
+  Object.values(S.polyLayers).forEach(l=>{ try{S.map.removeLayer(l);}catch(_){} });
+  S.polyLayers={};
+
+  const today=new Date().toISOString().split('T')[0];
+  const filteredIds=getFilteredDetIds();
+
+  S.units.forEach(unit=>{
+    const dets=S.detections.filter(d=>d.unitId===unit.id);
+    const hasDet=dets.length>0;
+    const hasToday=dets.some(d=>d.date===today);
+    const isCur=S.currentUnit&&S.currentUnit.id===unit.id;
+    const inFilter=!filteredIds||filteredIds.has(unit.id);
+    const dimmed=filteredIds&&!inFilter;
+
+    let color,fillColor,fillOpacity,weight,opacity;
+    if(dimmed){
+      color='#2A5544';fillColor='#1A3A30';fillOpacity=.1;weight=.8;opacity=.5;
+    } else if(isCur){
+      color='#E63946';fillColor='#E63946';fillOpacity=.45;weight=3;opacity=1;
+    } else if(hasToday){
+      color='#F5A623';fillColor='#F5A623';fillOpacity=.5;weight=2.5;opacity=1;
+    } else if(hasDet){
+      color='#F5A623';fillColor='#F5A623';fillOpacity=.22;weight=2;opacity=1;
+    } else {
+      color='#3EBF7C';fillColor='#2A9A5E';fillOpacity=.1;weight=1.2;opacity=.85;
+    }
+
+    const latlngs=unit.polygon.map(([lon,lat])=>[lat,lon]);
+    const poly=L.polygon(latlngs,{color,fillColor,fillOpacity,weight,opacity});
+
+    poly.bindTooltip(unit.name,{
+      className:'uf-permanent-label', direction:'center', permanent:true, interactive:false
+    });
+
+    if(!dimmed){
+      poly.on('click',()=>{
+        S.selectedUnit=unit;
+        S.currentUnit=unit;
+        document.getElementById('uf-val').textContent=unit.name;
+        if(_hasPerm('edit'))document.getElementById('btn-edit-uf').style.display='flex';
+        openModal();
+      });
+    }
+
+    poly.addTo(S.map);
+    S.polyLayers[unit.id]=poly;
+  });
+}
+
+function fitToBounds(){
+  if(!S.map||!S.units.length)return;
+  const lats=[],lons=[];
+  S.units.forEach(u=>u.polygon.forEach(([lon,lat])=>{lats.push(lat);lons.push(lon);}));
+  S.map.fitBounds([[Math.min(...lats),Math.min(...lons)],[Math.max(...lats),Math.max(...lons)]],{padding:[20,20]});
+}
+
+/* ═══════════════════════════════════════════
+   GPS
+═══════════════════════════════════════════ */
+function _applyPos(p){
+  S.pos={lat:p.coords.latitude,lon:p.coords.longitude};
+  document.getElementById('gps-dot').classList.add('on');
+  document.getElementById('gps-txt').textContent=`${S.pos.lat.toFixed(5)}, ${S.pos.lon.toFixed(5)}`;
+
+  if(S.map){
+    const ll=[S.pos.lat,S.pos.lon];
+    if(!S.gpsMarker){
+      S.gpsRing=L.circleMarker(ll,{radius:20,color:'#3EBF7C',fillColor:'#3EBF7C',fillOpacity:.15,weight:1.5}).addTo(S.map);
+      S.gpsMarker=L.circleMarker(ll,{radius:8,color:'#fff',fillColor:'#3EBF7C',fillOpacity:1,weight:2.5}).addTo(S.map);
+    } else {
+      S.gpsMarker.setLatLng(ll);
+      S.gpsRing.setLatLng(ll);
+    }
+  }
+
+  const hit=S.units.find(u=>pip([S.pos.lon,S.pos.lat],u.polygon));
+  if(hit&&(!S.currentUnit||S.currentUnit.id!==hit.id)){
+    S.currentUnit=hit;
+    document.getElementById('uf-val').textContent=hit.name;
+    document.getElementById('sel-name').textContent=hit.name;
+    if(_hasPerm('edit'))document.getElementById('btn-edit-uf').style.display='flex';
+    if(S.polyLayers[hit.id]){S.polyLayers[hit.id].setStyle({color:'#E63946',fillColor:'#E63946',fillOpacity:.5});}
+    renderPolygons();
+  }
+}
+function _gpsErr(e){
+  document.getElementById('gps-dot').classList.remove('on');
+  let msg = 'Error GPS';
+  if(e.code === 1) msg = 'GPS bloqueado. Chrome exige que la app se abra desde un sitio web seguro (HTTPS) y que le des permisos.';
+  else if(e.code === 2) msg = 'Ubicación no disponible.';
+  else if(e.code === 3) msg = 'Tiempo agotado. Intentá de nuevo.';
+  customAlert(msg);
+  document.getElementById('gps-txt').textContent='Sin GPS';
+}
+function requestGPS(){
+  if(!navigator.geolocation){toast('Tu navegador no soporta GPS','err');return;}
+  if(_gpsWatchId!==null)navigator.geolocation.clearWatch(_gpsWatchId);
+  toast('Solicitando GPS…','ok');
+  document.getElementById('gps-txt').textContent='Buscando…';
+  navigator.geolocation.getCurrentPosition(p=>{
+    _applyPos(p);toast('GPS activo ✓','ok');
+    _gpsWatchId=navigator.geolocation.watchPosition(_applyPos,()=>{},{enableHighAccuracy:true,maximumAge:3000,timeout:20000});
+  },_gpsErr,{enableHighAccuracy:true,timeout:15000,maximumAge:0});
+}
+
+/* ═══════════════════════════════════════════
+   FILTER
+═══════════════════════════════════════════ */
+function getFilteredDetIds(){
+  if(!S.filters.active)return null;
+  const f=S.filters;
+  return new Set(S.detections.filter(d=>{
+    if(f.from&&d.date<f.from)return false;
+    if(f.to&&d.date>f.to)return false;
+    if(f.types.length&&!f.types.includes(d.workType))return false;
+    return true;
+  }).map(d=>d.unitId));
+}
+function toggleFilter(){
+  const p=document.getElementById('filter-panel');
+  if(!p.style.display||p.style.display==='none')p.style.display='block';
+  p.classList.toggle('open');
+  if(p.classList.contains('open')){
+    const list=document.getElementById('wt-filter-list');
+    list.innerHTML=S.workTypes.map(w=>`<button class="fpill${S.filters.types.includes(w)?' on':''}" onclick="toggleWTFilter('${w}',this)">${w}</button>`).join('');
+    if(S.filters.from)document.getElementById('ff-from').value=S.filters.from;
+    if(S.filters.to)document.getElementById('ff-to').value=S.filters.to;
+  }
+}
+function toggleWTFilter(w,btn){S.filters.types.includes(w)?S.filters.types.splice(S.filters.types.indexOf(w),1):S.filters.types.push(w);btn.classList.toggle('on');}
+function quickFilter(p){
+  const today=new Date().toISOString().split('T')[0];
+  if(p==='today'){S.filters={active:true,from:today,to:today,types:[]};}
+  else if(p==='week'){const d=new Date();d.setDate(d.getDate()-d.getDay());S.filters={active:true,from:d.toISOString().split('T')[0],to:today,types:[]};}
+  else if(p==='month'){S.filters={active:true,from:today.slice(0,7)+'-01',to:today,types:[]};}
+  else{S.filters={active:false,from:'',to:'',types:[]};}
+  document.getElementById('ff-from').value=S.filters.from||'';
+  document.getElementById('ff-to').value=S.filters.to||'';
+  _commitFilters();
+  document.getElementById('filter-panel').classList.remove('open');
+}
+function applyFilters(){
+  const from=document.getElementById('ff-from').value,to=document.getElementById('ff-to').value;
+  S.filters.from=from;S.filters.to=to;
+  _commitFilters();
+  document.getElementById('filter-panel').classList.remove('open');
+}
+function _commitFilters(){
+  S.filters.active=!!(S.filters.from||S.filters.to||S.filters.types.length);
+  const badge=document.getElementById('filter-badge');
+  badge.classList.toggle('on',S.filters.active);
+  if(S.filters.active){
+    const parts=[];
+    if(S.filters.from||S.filters.to)parts.push('fecha');
+    if(S.filters.types.length)parts.push(S.filters.types.length+' tipos');
+    badge.textContent=parts.join(', ');
+  }
+  renderPolygons();
+}
+function clearFilters(){S.filters={active:false,from:'',to:'',types:[]};document.getElementById('filter-badge').classList.remove('on');document.getElementById('ff-from').value='';document.getElementById('ff-to').value='';document.getElementById('wt-filter-list').querySelectorAll('.fpill').forEach(b=>b.classList.remove('on'));applyFilters();}
+
+/* ═══════════════════════════════════════════
+   KML PARSER
+═══════════════════════════════════════════ */
+function parseKMLCoords(cel){
+  const polygon=[];
+  cel.textContent.trim().split(/\s+/).forEach(t=>{
+    const p=t.split(',');if(p.length>=2){
+      const lon=parseFloat(p[0]),lat=parseFloat(p[1]);
+      if(!isNaN(lon)&&!isNaN(lat))polygon.push([lon,lat]);
+    }
+  });
+  return polygon;
+}
+
+function loadKML(inp){
+  const f=inp.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=e=>{
+    const doc=new DOMParser().parseFromString(e.target.result,'text/xml');
+    const units=[];
+    doc.querySelectorAll('Placemark').forEach(pm=>{
+      const name=pm.querySelector('name')?.textContent?.trim()||`UF ${units.length+1}`;
+      const outerCel=pm.querySelector('outerBoundaryIs coordinates')
+                   ||pm.querySelector('Polygon > coordinates')
+                   ||pm.querySelector('coordinates');
+      if(!outerCel)return;
+      const polygon=parseKMLCoords(outerCel);
+      if(polygon.length>=3){
+        const lons=polygon.map(p=>p[0]),lats=polygon.map(p=>p[1]);
+        units.push({id:units.length+1,name,polygon,
+          bounds:{minLon:Math.min(...lons),maxLon:Math.max(...lons),minLat:Math.min(...lats),maxLat:Math.max(...lats)},
+          centroid:[lons.reduce((a,b)=>a+b,0)/lons.length,lats.reduce((a,b)=>a+b,0)/lats.length]});
+      }
+    });
+    if(!units.length){customAlert('No se encontraron polígonos en el KML');return;}
+    _applyMapUnits(units,'KML');
+  };
+  r.readAsText(f);
+}
+
+function _applyMapUnits(units,src){
+  S.units=units;
+  saveData();
+  document.getElementById('kml-status').textContent=`✓ ${units.length} unidades funcionales cargadas (${src})`;
+  if(!S.map)initLeafletMap();
+  renderPolygons();
+  fitToBounds();
+  document.getElementById('filter-fab').style.display='flex';
+  toast(`${units.length} UFs cargadas`,'ok');
+}
+
+function clearMap(){
+  if(!S.units.length)return;
+  customConfirm(`¿Borrar el mapa con ${S.units.length} UFs? Los registros de obras se conservan.`, () => {
+      Object.values(S.polyLayers).forEach(l=>{try{S.map&&S.map.removeLayer(l);}catch(_){}});
+      S.polyLayers={};
+      S.units=[];
+      S.currentUnit=null;S.selectedUnit=null;
+      document.getElementById('uf-val').textContent='—';
+      document.getElementById('kml-status').textContent='';
+      document.getElementById('filter-fab').style.display='none';
+      document.getElementById('btn-edit-uf').style.display='none';
+      saveData();
+      toast('Mapa borrado','ok');
+  });
+}
+
+/* ═══════════════════════════════════════════
+   MAP GEOJSON EXPORT / IMPORT
+═══════════════════════════════════════════ */
+function exportMapJSON(){
+  if(!S.units.length){customAlert('No hay mapa cargado para exportar');return;}
+  const geojson={
+    type:'FeatureCollection',
+    features:S.units.map(u=>({
+      type:'Feature',
+      properties:Object.assign({},u.props||{},{_uf:u.name}),
+      geometry:{
+        type:'Polygon',
+        coordinates:[[...u.polygon,u.polygon[0]].map(([lon,lat])=>[lon,lat])]
+      }
+    }))
+  };
+  const b=new Blob([JSON.stringify(geojson,null,2)],{type:'application/geo+json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(b);
+  a.download=`mapa-lpj-${new Date().toISOString().split('T')[0]}.geojson`;
+  a.click();URL.revokeObjectURL(a.href);
+  toast(`GeoJSON exportado (${S.units.length} UFs)`,'ok');
+}
+
+function _buildUnit(idx,name,ring,props){
+  const polygon=(ring.length>1&&ring[0][0]===ring[ring.length-1][0]&&ring[0][1]===ring[ring.length-1][1])
+    ?ring.slice(0,-1):ring;
+  if(polygon.length<3)return null;
+  const lons=polygon.map(p=>p[0]),lats=polygon.map(p=>p[1]);
+  return{id:idx+1,name,polygon,props:props||{},
+    bounds:{minLon:Math.min(...lons),maxLon:Math.max(...lons),minLat:Math.min(...lats),maxLat:Math.max(...lats)},
+    centroid:[lons.reduce((a,b)=>a+b,0)/lons.length,lats.reduce((a,b)=>a+b,0)/lats.length]};
+}
+
+function loadMapJSON(inp){
+  const f=inp.files[0];if(!f)return;
+  inp.value='';
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      const d=JSON.parse(e.target.result);
+      const raw=[];
+
+      const collectFeature=(ft,fallbackIdx)=>{
+        const geo=ft.geometry;
+        const props=ft.properties||{};
+        if(!geo)return;
+        if(geo.type==='Polygon'){
+          raw.push({ring:geo.coordinates[0].map(c=>[c[0],c[1]]),props,fallbackIdx:raw.length});
+        } else if(geo.type==='MultiPolygon'){
+          geo.coordinates.forEach(polyrings=>{
+            raw.push({ring:polyrings[0].map(c=>[c[0],c[1]]),props,fallbackIdx:raw.length});
+          });
+        }
+      };
+
+      if(d.type==='FeatureCollection'&&Array.isArray(d.features)){
+        d.features.forEach((ft,i)=>collectFeature(ft,i));
+      } else if(d.type==='Feature'){
+        collectFeature(d,0);
+      } else {
+        customAlert('Formato no reconocido. Usá GeoJSON con type FeatureCollection.');return;
+      }
+
+      if(!raw.length){customAlert('No se encontraron polígonos en el archivo');return;}
+
+      const keySet=new Set();
+      raw.forEach(r=>Object.keys(r.props).forEach(k=>keySet.add(k)));
+      S.geoRaw=raw;
+      S.geoPropKeys=[...keySet];
+      showGeoMapper();
+    }catch(err){
+      console.error(err);
+      customAlert('Archivo inválido o JSON malformado');
+    }
+  };
+  r.readAsText(f,'UTF-8');
+}
+
+function showGeoMapper(){
+  const keys=S.geoPropKeys;
+  const ufGuessKeys=['uf','UF','nro','NRO','numero','NUMERO','num','NUM','id_uf','ID_UF','_uf'];
+  let guessKey=keys.find(k=>ufGuessKeys.includes(k))||keys[0]||'';
+
+  const opts=keys.map(k=>`<option value="${k}"${k===guessKey?' selected':''}>${k}</option>`).join('');
+  document.getElementById('geo-uf-prop').innerHTML=opts;
+
+  const preview=S.geoRaw.slice(0,4);
+  const propKeys=S.geoPropKeys;
+  let tbl=`<table style="border-collapse:collapse;width:100%;min-width:360px">
+    <thead><tr><th style="border:1px solid var(--border);padding:4px 8px;background:var(--surface);color:var(--muted);white-space:nowrap">#</th>
+    ${propKeys.map(k=>`<th style="border:1px solid var(--border);padding:4px 8px;background:var(--surface);color:var(--muted);white-space:nowrap">${k}</th>`).join('')}</tr></thead><tbody>`;
+  preview.forEach((row,i)=>{
+    tbl+=`<tr><td style="border:1px solid var(--border);padding:4px 8px;color:var(--muted)">${i+1}</td>
+    ${propKeys.map(k=>`<td style="border:1px solid var(--border);padding:4px 8px;white-space:nowrap">${row.props[k]??''}</td>`).join('')}</tr>`;
+  });
+  tbl+='</tbody></table>';
+  document.getElementById('geo-preview').innerHTML=tbl;
+  document.getElementById('geo-mapper').style.display='block';
+}
+
+function cancelGeoMapper(){
+  document.getElementById('geo-mapper').style.display='none';
+  S.geoRaw=[];S.geoPropKeys=[];
+}
+
+function applyGeoMapper(){
+  const ufKey=document.getElementById('geo-uf-prop').value;
+  if(!ufKey){customAlert('Seleccioná la propiedad de UF');return;}
+  const units=[];
+  S.geoRaw.forEach((row,i)=>{
+    const name=String(row.props[ufKey]??`UF ${i+1}`).trim()||`UF ${i+1}`;
+    const u=_buildUnit(units.length,name,row.ring,row.props);
+    if(u)units.push(u);
+  });
+  if(!units.length){customAlert('No se generaron unidades válidas');return;}
+  cancelGeoMapper();
+  S.geoUfKey=ufKey;
+  _applyMapUnits(units,'GeoJSON');
+}
+
+/* ═══════════════════════════════════════════
+   POINT IN POLYGON (ray-casting)
+═══════════════════════════════════════════ */
+function pip([px,py],polygon){
+  let inside=false;
+  for(let i=0,j=polygon.length-1;i<polygon.length;j=i++){
+    const [xi,yi]=polygon[i],[xj,yj]=polygon[j];
+    if(((yi>py)!==(yj>py))&&(px<(xj-xi)*(py-yi)/(yj-yi)+xi))inside=!inside;
+  }
+  return inside;
+}
+
+/* ═══════════════════════════════════════════
+   MODAL / REGISTRO
+═══════════════════════════════════════════ */
+function sortedUnits(){
+  return [...S.units].sort((a,b)=>{
+    const na=parseInt(a.name)||0, nb=parseInt(b.name)||0;
+    return na!==nb?na-nb:a.name.localeCompare(b.name,'es',{numeric:true});
+  });
+}
+
+function populateUFDrop(filterText){
+  const drop=document.getElementById('uf-drop');
+  const q=(filterText||'').toLowerCase().trim();
+  const list=sortedUnits().filter(u=>!q||u.name.toLowerCase().includes(q));
+  drop.innerHTML=list.map(u=>`<option value="${u.id}">${u.name}</option>`).join('');
+  if(S.selectedUnit){
+    const opt=[...drop.options].find(o=>parseInt(o.value)===S.selectedUnit.id
+      ||(typeof S.selectedUnit.id==='string'&&o.value===String(S.selectedUnit.id)));
+    if(opt){opt.selected=true;drop.scrollTop=opt.offsetTop;}
+  }
+}
+
+function filterUFDrop(){
+  populateUFDrop(document.getElementById('uf-search').value);
+}
+
+function selUFDrop(){
+  const drop=document.getElementById('uf-drop');
+  const val=drop.value;
+  const unit=S.units.find(u=>String(u.id)===String(val));
+  if(!unit)return;
+  S.selectedUnit=unit;
+  document.getElementById('sel-name').textContent=unit.name;
+  if(S.map&&S.polyLayers[unit.id]){
+    S.polyLayers[unit.id].openTooltip();
+  }
+}
+
+function openModal(){
+  if(!S.units.length){customAlert('Primero importá el KML o GeoJSON con las UFs');return;}
+  document.getElementById('wt-sel').innerHTML=S.workTypes.map(w=>`<option>${w}</option>`).join('');
+  document.getElementById('photo-img').style.display='none';
+  document.getElementById('photo-in').value='';
+  document.getElementById('obs').value='';
+  document.getElementById('uf-search').value='';
+  S.currentPhoto=null;
+  if(S.currentUnit)S.selectedUnit=S.currentUnit;
+  document.getElementById('sel-name').textContent=S.selectedUnit?.name||'—';
+  populateUFDrop('');
+  document.getElementById('mdrop').classList.add('open');
+  setTimeout(()=>{
+    const drop=document.getElementById('uf-drop');
+    const sel=[...drop.options].find(o=>o.selected);
+    if(sel)drop.scrollTop=sel.offsetTop;
+  },80);
+}
+function closeModal(){document.getElementById('mdrop').classList.remove('open');}
+
+/* ═══════════════════════════════════════════
+   EDITAR DATOS DE UF
+═══════════════════════════════════════════ */
+function openEditUF(){
+  if(!_hasPerm('edit')){toast('No tenés permiso para editar','err');return;}
+  const unit=S.currentUnit;
+  if(!unit){customAlert('Seleccioná una UF primero');return;}
+  document.getElementById('edit-uf-name').value=unit.name;
+  renderEditProps(unit.props||{});
+  document.getElementById('edit-uf-drop').style.display='flex';
+}
+function closeEditUF(){document.getElementById('edit-uf-drop').style.display='none';}
+
+function renderEditProps(props){
+  const list=document.getElementById('edit-props-list');
+  const entries=Object.entries(props);
+  if(!entries.length){list.innerHTML='<div style="font-size:13px;color:var(--muted);text-align:center;padding:8px 0">Sin propiedades — usá ＋ Agregar campo</div>';return;}
+  list.innerHTML=entries.map(([k,v],i)=>`
+    <div style="display:grid;grid-template-columns:1fr 1.5fr auto;gap:6px;align-items:center" data-prop-row="${i}">
+      <input type="text" value="${_esc(k)}" placeholder="Nombre del campo"
+        style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--muted);font-size:13px;font-weight:600">
+      <input type="text" value="${_esc(String(v??''))}" placeholder="Valor"
+        style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:14px">
+      <button onclick="this.closest('[data-prop-row]').remove()"
+        style="background:var(--red-d);border:1px solid var(--red-d);color:var(--red);border-radius:8px;width:34px;height:34px;font-size:16px;flex-shrink:0;cursor:pointer">✕</button>
+    </div>`).join('');
+}
+
+function _esc(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+
+function addEditPropRow(){
+  const list=document.getElementById('edit-props-list');
+  const msg=list.querySelector('div:not([data-prop-row])');if(msg)msg.remove();
+  const i=list.querySelectorAll('[data-prop-row]').length;
+  const div=document.createElement('div');
+  div.setAttribute('data-prop-row',i);
+  div.style.cssText='display:grid;grid-template-columns:1fr 1.5fr auto;gap:6px;align-items:center';
+  div.innerHTML=`
+    <input type="text" placeholder="Nombre del campo"
+      style="background:var(--card);border:1px solid var(--accent);border-radius:8px;padding:8px 10px;color:var(--muted);font-size:13px;font-weight:600">
+    <input type="text" placeholder="Valor"
+      style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:14px">
+    <button onclick="this.closest('[data-prop-row]').remove()"
+      style="background:var(--red-d);border:1px solid var(--red-d);color:var(--red);border-radius:8px;width:34px;height:34px;font-size:16px;flex-shrink:0;cursor:pointer">✕</button>`;
+  list.appendChild(div);
+  div.querySelector('input').focus();
+}
+
+function saveEditUF(){
+  if(!_hasPerm('edit')){toast('No tenés permiso para editar','err');return;}
+  const unit=S.currentUnit;
+  if(!unit)return;
+  const newName=document.getElementById('edit-uf-name').value.trim();
+  if(!newName){customAlert('El nombre de UF no puede estar vacío');return;}
+
+  const newProps={};
+  document.querySelectorAll('#edit-props-list [data-prop-row]').forEach(row=>{
+    const inputs=row.querySelectorAll('input');
+    const k=inputs[0].value.trim();
+    const v=inputs[1].value.trim();
+    if(k)newProps[k]=v;
+  });
+
+  const idx=S.units.findIndex(u=>u.id===unit.id);
+  if(idx<0)return;
+  const oldName=S.units[idx].name;
+  S.units[idx].name=newName;
+  S.units[idx].props=newProps;
+
+  if(oldName!==newName){
+    S.detections.forEach(d=>{if(d.unitName===oldName){d.unitName=newName;}});
+  }
+
+  S.currentUnit=S.units[idx];
+  if(S.selectedUnit&&S.selectedUnit.id===unit.id)S.selectedUnit=S.units[idx];
+
+  saveData();
+  renderPolygons();
+  document.getElementById('uf-val').textContent=newName;
+  closeEditUF();
+  toast(`UF "${newName}" actualizada`,'ok');
+}
+
+function handlePhoto(inp){
+  (()=>{
+    const f=inp.files[0];if(!f)return;
+    const r=new FileReader();
+    r.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const MAX=800,c=document.createElement('canvas');
+        const sc=Math.min(1,MAX/Math.max(img.width,img.height));
+        c.width=img.width*sc;c.height=img.height*sc;
+        c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+        S.currentPhoto=c.toDataURL('image/jpeg',.72);
+        const pi=document.getElementById('photo-img');pi.src=S.currentPhoto;pi.style.display='block';
+      };img.src=e.target.result;
+    };r.readAsDataURL(f);
+  })();
+}
+
+async function saveDetection(){
+  if(!_hasPerm('edit')){toast('No tenés permiso para guardar registros','err');return;}
+  if(!S.selectedUnit){customAlert('Seleccioná una UF');return;}
+  const now=new Date();
+  const det={id:Date.now(),unitId:S.selectedUnit.id,unitName:S.selectedUnit.name,
+    workType:document.getElementById('wt-sel').value,
+    notes:document.getElementById('obs').value.trim(),
+    _photo:S.currentPhoto||null,
+    lat:S.pos?.lat??null,lon:S.pos?.lon??null,
+    date:now.toISOString().split('T')[0],
+    datetime:now.toISOString(),ts:now.getTime(),
+    createdBy:_currentUser?.name||'Administrador'};
+  S.detections.unshift(det);
+  saveData();renderDets();renderPolygons();closeModal();
+  toast(`Obra registrada en ${S.selectedUnit.name}`,'ok');
+}
+
+/* ═══════════════════════════════════════════
+   DETECTIONS LIST
+═══════════════════════════════════════════ */
+function renderDets(){
+  const q=(document.getElementById('search-input')?.value||'').toLowerCase();
+  const today=new Date().toISOString().split('T')[0];
+  let items=S.detections.filter(d=>!q||(d.unitName+d.workType+d.notes).toLowerCase().includes(q));
+  const el=document.getElementById('dets-list');
+  if(!items.length){el.innerHTML=`<div style="text-align:center;color:var(--muted);padding:40px 0;font-size:14px">${S.detections.length?'Sin resultados':'Sin detecciones aún'}</div>`;
+    document.getElementById('det-stats').style.display='none';return;}
+  document.getElementById('det-stats').style.display='flex';
+  document.getElementById('st-total').textContent=S.detections.length;
+  document.getElementById('st-today').textContent=S.detections.filter(d=>d.date===today).length;
+  document.getElementById('st-ufs').textContent=new Set(S.detections.map(d=>d.unitId)).size;
+  el.innerHTML=items.map(d=>{
+    const isToday=d.date===today;
+    return`<div class="det-card">
+      <div class="det-top">
+        <span class="det-uf">${d.unitName}</span>
+        <span class="det-wt">${d.workType}</span>
+        <button class="det-del" onclick="delDet(${d.id})" title="Eliminar">🗑</button>
+      </div>
+      <div class="det-date">${isToday?'<strong style="color:var(--accent)">HOY</strong> · ':''}${d.date}${d.lat?` · 📍 ${d.lat.toFixed(4)},${d.lon.toFixed(4)}`:''}${d.datetime?' · '+new Date(d.datetime).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):''}</div>
+      ${(d.createdBy||d.updatedBy)?`<div style="font-size:11px;color:var(--muted);margin-top:2px">${d.updatedBy?`✏️ Editado por ${d.updatedBy}`:`👤 Cargado por ${d.createdBy}`}</div>`:''}
+      ${d.notes?`<div class="det-notes">${d.notes}</div>`:''}
+      ${d._photo?`<img class="det-img" src="${d._photo}" style="display:block">`:''}
+    </div>`;
+  }).join('');
+}
+async function delDet(id){
+  if(!_hasPerm('edit')){toast('No tenés permiso para eliminar registros','err');return;}
+  customConfirm('¿Eliminar esta detección?', () => {
+      S.detections=S.detections.filter(d=>d.id!==id);
+      saveData();renderDets();renderPolygons();toast('Eliminada');
+  });
+}
+
+/* ═══════════════════════════════════════════
+   REPORTS
+═══════════════════════════════════════════ */
+const MONTH_NAMES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+function _monthLabel(ym){if(!ym||ym==='sin fecha')return'Sin fecha';const[y,m]=ym.split('-');return`${MONTH_NAMES[parseInt(m)-1]} ${y}`;}
+function _fmtDate(s){if(!s)return'—';const[y,m,d]=s.split('-');return`${d}/${m}/${y}`;}
+function _esc2(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function genReport(type){
+  const today=new Date().toISOString().split('T')[0];
+  let items=[],titleLabel='',rangeLabel='';
+  if(type==='today'){
+    items=S.detections.filter(d=>d.date===today);
+    titleLabel='Informe del día';rangeLabel=_fmtDate(today);
+  } else if(type==='week'){
+    const d=new Date();d.setDate(d.getDate()-d.getDay());
+    const from=d.toISOString().split('T')[0];
+    items=S.detections.filter(d=>d.date>=from&&d.date<=today);
+    titleLabel='Esta semana';rangeLabel=`${_fmtDate(from)} al ${_fmtDate(today)}`;
+  } else if(type==='month'){
+    const from=today.slice(0,7)+'-01';
+    items=S.detections.filter(d=>d.date>=from&&d.date<=today);
+    titleLabel='Este mes';rangeLabel=_monthLabel(today.slice(0,7));
+  } else if(type==='all'){
+    items=[...S.detections];
+    titleLabel='Historial completo';rangeLabel=`${items.length} registros`;
+  } else {
+    const f=document.getElementById('r-from').value,t=document.getElementById('r-to').value;
+    if(!f||!t){customAlert('Seleccioná ambas fechas');return;}
+    items=S.detections.filter(d=>d.date>=f&&d.date<=t);
+    titleLabel='Período';rangeLabel=`${_fmtDate(f)} al ${_fmtDate(t)}`;
+  }
+
+  items=items.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+
+  const ufsAfect=new Set(items.map(d=>d.unitName)).size;
+  const byType={};items.forEach(d=>{byType[d.workType]=(byType[d.workType]||0)+1;});
+  const topType=Object.entries(byType).sort((a,b)=>b[1]-a[1])[0];
+
+  const byMonth={};items.forEach(d=>{const m=d.date?d.date.slice(0,7):'sin fecha';(byMonth[m]=byMonth[m]||[]).push(d);});
+  const monthKeys=Object.keys(byMonth).sort();
+  const maxMonthCount=Math.max(1,...Object.values(byMonth).map(a=>a.length));
+
+  const byDate={};items.forEach(d=>{const k=d.date||'sin fecha';(byDate[k]=byDate[k]||[]).push(d);});
+
+  const typeEntries=Object.entries(byType).sort((a,b)=>b[1]-a[1]);
+  const maxType=typeEntries[0]?.[1]||1;
+
+  const palette=['#F5A623','#3EBF7C','#6EC6F0','#E63946','#A78BFA','#FB923C','#34D399','#F472B6','#60A5FA','#FBBF24'];
+  const typeColor={};typeEntries.forEach(([t],i)=>{typeColor[t]=palette[i%palette.length];});
+
+  const byUF={};items.forEach(d=>{(byUF[d.unitName]=byUF[d.unitName]||[]).push(d);});
+  const topUFs=Object.entries(byUF).sort((a,b)=>b[1].length-a[1].length).slice(0,20);
+
+  const durationMap={};
+  S.detections.forEach(d=>{
+    const key=`${d.unitName}||${d.workType||'Sin tipo'}`;
+    if(!durationMap[key])durationMap[key]={unitName:d.unitName,workType:d.workType||'Sin tipo',months:[],startNote:''};
+    const entry=durationMap[key];
+    if(d.date&&d.date.length>=7){
+      const ym=d.date.slice(0,7);
+      if(!entry.months.includes(ym))entry.months.push(ym);
+    }
+    if(!entry.startNote&&d.notes){
+      const m=d.notes.match(/Inicio:\s*(\d{4}-\d{2}-\d{2})/i);
+      if(m)entry.startNote=m[1];
+    }
+  });
+  const durationRows=Object.values(durationMap)
+    .map(e=>{
+      const ms=e.months.slice().sort();
+      const first=ms[0]||'';
+      const last=ms[ms.length-1]||'';
+      let durMonths=1;
+      if(first&&last&&first!==last){
+        const [fy,fm]=first.split('-').map(Number);
+        const [ly,lm]=last.split('-').map(Number);
+        durMonths=(ly-fy)*12+(lm-fm)+1;
+      }
+      return{...e,months:ms,first,last,durMonths};
+    })
+    .filter(e=>e.months.length>0)
+    .sort((a,b)=>b.durMonths-a.durMonths||a.unitName.localeCompare(b.unitName,undefined,{numeric:true}));
+  
+  const relevantUnitNames=new Set(items.map(d=>d.unitName));
+  const multiMonthRows=durationRows.filter(e=>e.months.length>1&&relevantUnitNames.has(e.unitName));
+
+  const generated=new Date().toLocaleString('es-AR',{dateStyle:'long',timeStyle:'short'});
+
+  const html=`
+<div style="font-family:'Inter',system-ui,sans-serif;color:var(--text)">
+  <!-- Header -->
+  <div style="background:linear-gradient(135deg,var(--surface) 0%,var(--card) 100%);border:1px solid var(--border);border-radius:14px;padding:20px 18px 16px;margin-bottom:14px">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Club Campos de Golf Las Praderas de Luján</div>
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:800;color:var(--accent);line-height:1">${_esc2(titleLabel)}</div>
+    <div style="font-size:13px;color:var(--text-2);margin-top:4px">${_esc2(rangeLabel)}</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:6px">Generado: ${generated}</div>
+  </div>
+
+  <!-- KPI row -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
+    ${[
+      ['🏗','Total obras',items.length,'var(--accent)'],
+      ['📍','UFs afectadas',ufsAfect,'var(--green)'],
+      ['🔨','Tipo más frecuente',topType?`${topType[0]}<br><small style="font-size:11px">${topType[1]} registros</small>`:'—','var(--text-2)'],
+    ].map(([ic,lbl,val,col])=>`
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 12px;text-align:center">
+      <div style="font-size:22px">${ic}</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:${col};line-height:1.1;margin:4px 0">${val}</div>
+      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">${lbl}</div>
+    </div>`).join('')}
+  </div>
+
+  ${items.length===0?`
+  <div style="background:var(--surface);border:1px dashed var(--border);border-radius:12px;padding:24px;margin-bottom:14px;text-align:center;color:var(--muted);font-size:13px">
+    No hay obras registradas en este período.${type==='today'||type==='week'||type==='month'?' Probá con "📋 Todo" o un rango de fechas más amplio para ver el historial completo.':''}
+  </div>`:''}
+
+  ${monthKeys.length>1?`
+  <!-- Monthly chart -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-2);margin-bottom:12px">Resumen mensual</div>
+    <div style="display:flex;flex-direction:column;gap:7px">
+    ${monthKeys.map(m=>{
+      const n=byMonth[m].length;
+      const pct=Math.round(n/maxMonthCount*100);
+      return`<div style="display:grid;grid-template-columns:110px 1fr 36px;align-items:center;gap:8px;font-size:12px">
+        <span style="color:var(--text-2);white-space:nowrap">${_monthLabel(m)}</span>
+        <div style="background:var(--card);border-radius:4px;height:8px;overflow:hidden">
+          <div style="background:var(--accent);width:${pct}%;height:100%;border-radius:4px;transition:width .4s"></div>
+        </div>
+        <span style="color:var(--text);font-weight:700;text-align:right">${n}</span>
+      </div>`;
+    }).join('')}
+    </div>
+  </div>`:'' }
+
+  <!-- Type breakdown -->
+  ${typeEntries.length?`
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-2);margin-bottom:12px">Por tipo de obra</div>
+    <div style="display:flex;flex-direction:column;gap:7px">
+    ${typeEntries.map(([t,n])=>{
+      const pct=Math.round(n/maxType*100);
+      const col=typeColor[t];
+      return`<div style="display:grid;grid-template-columns:1fr 140px 36px;align-items:center;gap:8px;font-size:12px">
+        <span style="color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc2(t)}</span>
+        <div style="background:var(--card);border-radius:4px;height:8px;overflow:hidden">
+          <div style="background:${col};width:${pct}%;height:100%;border-radius:4px"></div>
+        </div>
+        <span style="color:var(--text);font-weight:700;text-align:right">${n}</span>
+      </div>`;
+    }).join('')}
+    </div>
+  </div>`:''}
+
+  <!-- Top UFs -->
+  ${topUFs.length?`
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-2);margin-bottom:10px">Top UFs con más obras</div>
+    <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="border-bottom:1px solid var(--border)">
+        <th style="text-align:left;padding:6px 8px;color:var(--muted);font-weight:600">UF</th>
+        <th style="text-align:right;padding:6px 8px;color:var(--muted);font-weight:600">Obras</th>
+        <th style="text-align:left;padding:6px 8px;color:var(--muted);font-weight:600">Tipos</th>
+      </tr></thead>
+      <tbody>
+      ${topUFs.map(([uf,dets],i)=>{
+        const types=[...new Set(dets.map(d=>d.workType))].slice(0,3).join(', ');
+        return`<tr style="border-bottom:1px solid var(--border);${i%2===0?'background:var(--card)':''}">
+          <td style="padding:7px 8px;font-weight:700;color:var(--accent)">${_esc2(uf)}</td>
+          <td style="padding:7px 8px;text-align:right;font-weight:700">${dets.length}</td>
+          <td style="padding:7px 8px;color:var(--text-2)">${_esc2(types)}</td>
+        </tr>`;
+      }).join('')}
+      </tbody>
+    </table>
+    </div>
+  </div>`:''}
+
+  <!-- Duration tracking panel -->
+  ${multiMonthRows.length?`
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-2);margin-bottom:6px">⏱ Duración de obras (obras con múltiples meses)</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Obras que aparecen en más de un reporte mensual. La duración se calcula desde el primer mes registrado hasta el último.</div>
+    <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="border-bottom:2px solid var(--border)">
+        <th style="text-align:left;padding:7px 8px;color:var(--muted);font-weight:600">UF</th>
+        <th style="text-align:left;padding:7px 8px;color:var(--muted);font-weight:600">Tipo</th>
+        <th style="text-align:left;padding:7px 8px;color:var(--muted);font-weight:600;white-space:nowrap">Primer mes</th>
+        <th style="text-align:left;padding:7px 8px;color:var(--muted);font-weight:600;white-space:nowrap">Último mes</th>
+        <th style="text-align:right;padding:7px 8px;color:var(--muted);font-weight:600;white-space:nowrap">Duración</th>
+        <th style="text-align:left;padding:7px 8px;color:var(--muted);font-weight:600">Meses registrados</th>
+      </tr></thead>
+      <tbody>
+      ${multiMonthRows.map((e,i)=>{
+        const durLabel=e.durMonths===1?'1 mes':`${e.durMonths} meses`;
+        const durColor=e.durMonths>=12?'var(--red)':e.durMonths>=6?'#F5A623':'var(--green)';
+        const monthChips=e.months.map(m=>`<span style="display:inline-block;background:var(--card);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:10px;margin:1px 2px 1px 0;white-space:nowrap">${_monthLabel(m)}</span>`).join('');
+        return`<tr style="border-bottom:1px solid var(--border);${i%2===0?'background:var(--card)':''}">
+          <td style="padding:7px 8px;font-weight:700;color:var(--accent);white-space:nowrap">${_esc2(e.unitName)}</td>
+          <td style="padding:7px 8px;color:var(--text-2)">${_esc2(e.workType)}</td>
+          <td style="padding:7px 8px;white-space:nowrap;color:var(--text-2)">${_monthLabel(e.first)}</td>
+          <td style="padding:7px 8px;white-space:nowrap;color:var(--text-2)">${_monthLabel(e.last)}</td>
+          <td style="padding:7px 8px;text-align:right;font-weight:700;color:${durColor}">${durLabel}</td>
+          <td style="padding:7px 8px">${monthChips}</td>
+        </tr>`;
+      }).join('')}
+      </tbody>
+    </table>
+    </div>
+  </div>`:''}
+
+  <!-- Detail table by date -->
+  ${items.length?`
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-2);margin-bottom:10px">Detalle de obras</div>
+    <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="border-bottom:2px solid var(--border)">
+        <th style="text-align:left;padding:7px 8px;color:var(--muted);font-weight:600;white-space:nowrap">Fecha</th>
+        <th style="text-align:left;padding:7px 8px;color:var(--muted);font-weight:600">UF</th>
+        <th style="text-align:left;padding:7px 8px;color:var(--muted);font-weight:600">Tipo de obra</th>
+        <th style="text-align:left;padding:7px 8px;color:var(--muted);font-weight:600">Observaciones</th>
+        <th style="text-align:left;padding:7px 8px;color:var(--muted);font-weight:600;white-space:nowrap">Cargado por</th>
+      </tr></thead>
+      <tbody>
+      ${items.map((d,i)=>{
+        const col=typeColor[d.workType]||'var(--accent)';
+        return`<tr style="border-bottom:1px solid var(--border);${i%2===0?'background:var(--card)':''}">
+          <td style="padding:7px 8px;white-space:nowrap;color:var(--text-2)">${_fmtDate(d.date)}</td>
+          <td style="padding:7px 8px;font-weight:700;color:var(--accent)">${_esc2(d.unitName)}</td>
+          <td style="padding:7px 8px">
+            <span style="background:${col}22;color:${col};border:1px solid ${col}55;border-radius:6px;padding:2px 8px;font-size:11px;white-space:nowrap">${_esc2(d.workType)}</span>
+          </td>
+          <td style="padding:7px 8px;color:var(--text-2)">${_esc2(d.notes||'—')}</td>
+          <td style="padding:7px 8px;color:var(--muted);white-space:nowrap">${_esc2(d.updatedBy||d.createdBy||'—')}</td>
+        </tr>`;
+      }).join('')}
+      </tbody>
+    </table>
+    </div>
+  </div>`:'<div style="text-align:center;padding:32px;color:var(--muted)">Sin registros en el período seleccionado</div>'}
+</div>`;
+
+  const out=document.getElementById('rout');
+  out.innerHTML=html;
+  out.style.display='block';
+  out.style.cssText='display:block;margin-top:8px';
+  document.getElementById('report-actions').style.display='flex';
+  S._lastReportHTML=html;
+  S._lastReportLabel=`${titleLabel} — ${rangeLabel}`;
+}
+
+function printReport(){
+  if(!S._lastReportHTML){customAlert('Primero generá un informe');return;}
+  const date=new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'long',year:'numeric'});
+  const win=window.open('','_blank','width=900,height=750');
+  if(!win){customAlert('Habilitá ventanas emergentes para exportar');return;}
+  win.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+  <title>Informe — Las Praderas de Luján</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;700;800&family=Inter:wght@400;600;700&display=swap">
+  <style>
+    :root{--bg:#fff;--surface:#f7f7f5;--card:#efefec;--border:#ddd;--border-2:#ccc;--accent:#1B6B35;--green:#1B6B35;--red:#C83030;--text:#111;--text-2:#444;--muted:#888}
+    @page{margin:14mm 12mm;size:A4}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Inter',system-ui,sans-serif;background:#fff;color:#111;font-size:12px;padding:0}
+    .page{max-width:780px;margin:0 auto;padding:24px 20px 40px}
+    .print-hdr{border-bottom:3px solid #1B6B35;padding-bottom:12px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:flex-end}
+    .print-hdr-title{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:#1B6B35}
+    .print-hdr-sub{font-size:11px;color:#666;margin-top:2px}
+    .print-hdr-date{font-size:11px;color:#888;text-align:right}
+    table{width:100%;border-collapse:collapse;font-size:11px;page-break-inside:auto}
+    thead{display:table-header-group}
+    tr{page-break-inside:avoid}
+    th{background:#1B6B35;color:#fff;padding:7px 8px;text-align:left;font-weight:600}
+    td{padding:6px 8px;border-bottom:1px solid #e0e0e0}
+    tr:nth-child(even) td{background:#f5f5f3}
+    .badge{display:inline-block;border-radius:4px;padding:2px 7px;font-size:10px;font-weight:600}
+    .section{margin-bottom:20px;page-break-inside:avoid}
+    .section-title{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;color:#1B6B35;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;border-bottom:1px solid #ddd;padding-bottom:4px}
+    .kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}
+    .kpi{border:1px solid #ddd;border-radius:8px;padding:10px;text-align:center}
+    .kpi-val{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:800;color:#1B6B35}
+    .kpi-lbl{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em}
+    .bar-row{display:grid;grid-template-columns:130px 1fr 36px;align-items:center;gap:8px;margin-bottom:6px;font-size:11px}
+    .bar-bg{background:#e8e8e4;border-radius:3px;height:7px;overflow:hidden}
+    .bar-fill{background:#1B6B35;height:100%;border-radius:3px}
+    .ftr{margin-top:24px;border-top:1px solid #ddd;padding-top:8px;text-align:center;font-size:9px;color:#aaa}
+    .no-print{display:block;margin:16px auto;background:#1B6B35;color:#fff;border:none;padding:10px 28px;border-radius:6px;font-size:13px;cursor:pointer}
+    @media print{.no-print{display:none}}
+  </style></head><body><div class="page">
+  <div class="print-hdr">
+    <div>
+      <div class="print-hdr-title">🏗 Club Campos de Golf Las Praderas de Luján</div>
+      <div class="print-hdr-sub">Control de Obras en Unidades Funcionales · ${_esc2(S._lastReportLabel)}</div>
+    </div>
+    <div class="print-hdr-date">${date}</div>
+  </div>
+  ${S._lastReportHTML.replace(/var\(--[\w-]+\)/g,c=>{
+    const map={'var(--accent)':'#1B6B35','var(--green)':'#1B6B35','var(--red)':'#C83030',
+      'var(--text)':'#111','var(--text-2)':'#444','var(--muted)':'#888',
+      'var(--surface)':'#f7f7f5','var(--card)':'#efefec','var(--border)':'#ddd','var(--border-2)':'#ccc'};
+    return map[c]||c;
+  })}
+  <div class="ftr">Control de Obras · Las Praderas de Luján · ${date}</div>
+  <button class="no-print" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+  </div></body></html>`);
+  win.document.close();
+  setTimeout(()=>{try{win.focus();}catch(_){}},200);
+}
+
+/* ═══════════════════════════════════════════
+   WORK TYPES
+═══════════════════════════════════════════ */
+function renderWTs(){document.getElementById('wt-list').innerHTML=S.workTypes.map((w,i)=>`<div class="tag"><span>${w}</span><button class="tdel" onclick="delWT(${i})">×</button></div>`).join('');}
+function addWT(){const inp=document.getElementById('nwt'),v=inp.value.trim();if(!v){toast('Escribí un nombre','err');return;}if(S.workTypes.includes(v)){toast('Ya existe','err');return;}S.workTypes.push(v);inp.value='';saveData();renderWTs();}
+function delWT(i){if(S.workTypes.length<=1){toast('Debe haber al menos uno','err');return;}S.workTypes.splice(i,1);saveData();renderWTs();}
+function updateSettingsCount(){const el=document.getElementById('s-count');if(el)el.textContent=S.detections.length;}
+
+/* ═══════════════════════════════════════════
+   DATA PERSISTENCE (IN-MEMORY VERSION)
+═══════════════════════════════════════════ */
+function saveData(){
+    updateSettingsCount();
+}
+function loadData(){
+    // In-memory version starts empty unless imported via JSON or Gist
+}
+
+/* ═══════════════════════════════════════════
+   JSON EXPORT / IMPORT
+═══════════════════════════════════════════ */
+function exportJSON(){
+  const data={detections:S.detections.map(({_photo,...r})=>r),workTypes:S.workTypes,exported:new Date().toISOString()};
+  const b=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);
+  a.download=`obras-lpj-${new Date().toISOString().split('T')[0]}.json`;a.click();URL.revokeObjectURL(a.href);
+}
+function importJSON(inp){
+  (()=>{
+    const f=inp.files[0];if(!f)return;
+    const r=new FileReader();
+    r.onload=async e=>{
+      try{
+        const d=JSON.parse(e.target.result);
+        if(d.detections)S.detections=[...d.detections,...S.detections.filter(x=>!d.detections.find(y=>y.id===x.id))];
+        if(d.workTypes)d.workTypes.forEach(w=>{if(!S.workTypes.includes(w))S.workTypes.push(w);});
+        S.detections.sort((a,b)=>b.ts-a.ts);
+        saveData();renderDets();renderPolygons();renderWTs();
+        toast(`${d.detections?.length||0} registros importados`,'ok');
+      }catch(_){toast('Archivo JSON inválido','err');}
+    };r.readAsText(f);
+  })();
+}
+async function clearAll(){
+  if(!_hasPerm('deleteAll')){toast('No tenés permiso para borrar datos','err');return;}
+  customConfirm('¿Borrar TODAS las detecciones? Esta acción no se puede deshacer.', () => {
+      S.detections=[];saveData();renderDets();renderPolygons();toast('Datos borrados');
+  });
+}
+
+/* ═══════════════════════════════════════════
+   CSV IMPORT  (batch: múltiples archivos / carpeta)
+═══════════════════════════════════════════ */
+function detectSep(text){
+  const s=text.slice(0,4096);let semis=0,commas=0,inQ=false;
+  for(const c of s){if(c==='"')inQ=!inQ;else if(!inQ){if(c===';')semis++;else if(c===',')commas++;}}
+  return semis>=commas?';':',';
+}
+function findHeaderRow(lines,sep){
+  const kw=/\b(uf|u\.f|unidad|funcional|lote|fecha|date|tipo|observ|obs|nota|parcela|nro|concep|identif|propietario|propiet|orden|inicio)\b/i;
+  for(let i=0;i<Math.min(lines.length,15);i++){
+    if(!lines[i].trim())continue;
+    const cells=parseCSVLine(lines[i],sep),ne=cells.filter(c=>c.trim());
+    if(ne.length>=3&&kw.test(ne.join(' ')))return i;
+  }
+  return 0;
+}
+function parseCSV(text){
+  const lines=text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').trim().split('\n');
+  if(!lines.length)return{headers:[],rows:[]};
+  const sep=detectSep(text),hRow=findHeaderRow(lines,sep);
+  return{headers:parseCSVLine(lines[hRow],sep),rows:lines.slice(hRow+1).filter(l=>l.trim()).map(l=>parseCSVLine(l,sep))};
+}
+function parseCSVLine(line,sep){
+  if(sep===undefined){const t=line.slice(0,256);sep=(t.match(/;/g)||[]).length>=(t.match(/,/g)||[]).length?';':',';}
+  const res=[];let cur='',inQ=false;
+  for(let i=0;i<line.length;i++){
+    if(line[i]==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}
+    else if(line[i]===sep&&!inQ){res.push(cur.trim());cur='';}
+    else cur+=line[i];
+  }
+  res.push(cur.trim());return res;
+}
+function parseDate(s){
+  if(!s)return null;
+  s=String(s).trim();
+  const iso=/^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if(iso)return`${iso[1]}-${iso[2]}-${iso[3]}`;
+  const dmy4=/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/.exec(s);
+  if(dmy4)return`${dmy4[3]}-${dmy4[2].padStart(2,'0')}-${dmy4[1].padStart(2,'0')}`;
+  const dmy2=/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2})$/.exec(s);
+  if(dmy2){const y=parseInt(dmy2[3]);return`${y<50?2000+y:1900+y}-${dmy2[2].padStart(2,'0')}-${dmy2[1].padStart(2,'0')}`;}
+  const ymd=/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})$/.exec(s);
+  if(ymd)return`${ymd[1]}-${ymd[2].padStart(2,'0')}-${ymd[3].padStart(2,'0')}`;
+  if(/^\d{5}$/.test(s)){
+    const n=parseInt(s);
+    if(n>40000&&n<60000){const d=new Date((n-25569)*86400000);if(!isNaN(d))return d.toISOString().split('T')[0];}
+  }
+  const meses={enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,julio:7,agosto:8,septiembre:9,octubre:10,noviembre:11,diciembre:12};
+  const spa=/(\d{1,2})\s+(?:de\s+)?([a-záéíóú]+)\s+(?:de\s+)?(\d{2,4})/i.exec(s);
+  if(spa&&meses[spa[2].toLowerCase()]){
+    const y=parseInt(spa[3]);const yr=y<100?(y<50?2000+y:1900+y):y;
+    return`${yr}-${String(meses[spa[2].toLowerCase()]).padStart(2,'0')}-${spa[1].padStart(2,'0')}`;
+  }
+  const d=new Date(s);
+  if(!isNaN(d.getTime())&&d.getFullYear()>1990&&d.getFullYear()<2100)return d.toISOString().split('T')[0];
+  return null;
+}
+function detectEncoding(){return document.getElementById('csv-enc')?.value||'UTF-8';}
+
+function prepareCSVBatch(fileList){
+  if(!_hasPerm('import')){toast('No tenés permiso para importar datos','err');return;}
+  const files=[...fileList].filter(f=>/\.(csv|txt)$/i.test(f.name)&&!f.name.startsWith('.'));
+  if(!files.length){toast('No se encontraron archivos CSV en la selección','err');return;}
+  S.batchFiles=files;
+  S.batchTexts=new Array(files.length).fill(null);
+  const enc=detectEncoding();
+  const info=document.getElementById('csv-batch-info');
+  info.textContent=`Cargando ${files.length} archivo${files.length>1?'s':''}…`;
+  info.style.display='block';
+  let loaded=0;
+  files.forEach((f,i)=>{
+    const r=new FileReader();
+    r.onload=e=>{
+      S.batchTexts[i]=e.target.result;
+      loaded++;
+      if(loaded===files.length)showBatchMapper();
+    };
+    r.onerror=()=>{loaded++;if(loaded===files.length)showBatchMapper();};
+    r.readAsText(f,enc);
+  });
+}
+
+function _updateUFPreview(){
+  const sel=document.getElementById('map-uf');
+  const prev=document.getElementById('uf-col-preview');
+  if(!prev)return;
+  const idx=parseInt(sel.value);
+  if(isNaN(idx)||!S.csvRows.length){prev.textContent='';return;}
+  const samples=[];let badCount=0;
+  for(const row of S.csvRows){
+    const raw=(row[idx]||'').trim();
+    if(!raw)continue;
+    const norm=_normalizeUF(raw);
+    if(norm)samples.push(`✓ "${raw}"${norm!==raw?` → ${norm}`:''}`);
+    else{samples.push(`✗ "${raw}" (no es UF válida)`);badCount++;}
+    if(samples.length>=4)break;
+  }
+  const allOk=badCount===0&&samples.length>0;
+  prev.style.color=allOk?'var(--green)':'var(--red)';
+  prev.innerHTML=samples.join('<br>')||'Columna vacía';
+}
+
+function _updateWTPreview(){
+  const sel=document.getElementById('map-wt');
+  const prev=document.getElementById('wt-col-preview');
+  if(!prev)return;
+  const idx=parseInt(sel.value);
+  if(isNaN(idx)||!S.csvRows.length){prev.textContent='';return;}
+  const vals=new Set();
+  for(const row of S.csvRows){const v=(row[idx]||'').trim();if(v)vals.add(v);if(vals.size>=6)break;}
+  if(!vals.size){prev.textContent='Columna vacía';prev.style.color='var(--muted)';return;}
+  prev.style.color='var(--green)';
+  prev.textContent='Ej: '+[...vals].join(', ');
+}
+
+function _updateDatePreview(){
+  const sel=document.getElementById('map-date');
+  const prev=document.getElementById('date-preview');
+  if(!prev)return;
+  const idx=parseInt(sel.value);
+  if(isNaN(idx)||!S.csvRows.length){prev.textContent='⚠ Sin fecha → se usará la fecha de hoy';prev.style.color='var(--red)';return;}
+  const samples=[];
+  for(const row of S.csvRows){
+    const v=(row[idx]||'').trim();
+    if(v){const parsed=parseDate(v);samples.push(parsed?`✓ "${v}" → ${parsed}`:`✗ "${v}" (no reconocido)`);}
+    if(samples.length>=3)break;
+  }
+  if(!samples.length){prev.textContent='Columna vacía';prev.style.color='var(--muted)';return;}
+  const allOk=samples.every(s=>s.startsWith('✓'));
+  prev.style.color=allOk?'var(--green)':'var(--red)';
+  prev.innerHTML=samples.join('<br>');
+}
+
+function showBatchMapper(){
+  let headers=[], firstIdx=-1;
+  for(let i=0;i<S.batchTexts.length;i++){
+    if(!S.batchTexts[i])continue;
+    const parsed=parseCSV(S.batchTexts[i]);
+    if(parsed.headers.length>=2){headers=parsed.headers;S.csvHeaders=headers;S.csvRows=parsed.rows;firstIdx=i;break;}
+  }
+  if(!headers.length){toast('No se pudo leer ningún CSV válido','err');return;}
+
+  const n=S.batchFiles.length;
+  const info=document.getElementById('csv-batch-info');
+  const fileDateHints=S.batchFiles.map(f=>{const d=_dateFromFilename(f.name);return d?`${f.name} → ${d}`:f.name;});
+  const filesWithDates=S.batchFiles.filter(f=>_dateFromFilename(f.name));
+  const allHaveDates=filesWithDates.length===S.batchFiles.length;
+  info.innerHTML=`✓ ${n} archivo${n>1?'s':''} detectado${n>1?'s':''}`+(filesWithDates.length>0?`<br><small style="color:var(--green)">📅 Fechas en nombres: ${fileDateHints.filter(s=>s.includes('→')).join(' | ')}</small>`:'');
+  
+  const fdBlock=document.getElementById('csv-filedate-block');
+  const fdHint=document.getElementById('csv-filedate-hint');
+  const fdCheck=document.getElementById('csv-use-file-date');
+  if(filesWithDates.length>0){
+    fdBlock.style.display='block';
+    fdHint.textContent=filesWithDates.length>1
+      ?`Se detectaron fechas en ${filesWithDates.length} archivos. Al activar esta opción cada archivo genera registros del mes correspondiente.`
+      :`Fecha detectada: ${_dateFromFilename(filesWithDates[0].name)}. Activá si este CSV es un reporte mensual.`;
+    if(filesWithDates.length>=2&&allHaveDates) fdCheck.checked=true;
+  } else {
+    fdBlock.style.display='none';
+    fdCheck.checked=false;
+  }
+  document.getElementById('csv-file-count').textContent=n>1?`los ${n} archivos`:'este archivo';
+  document.getElementById('csv-preview-fname').textContent=S.batchFiles[firstIdx].name;
+
+  const opts=['<option value="">— no incluida —</option>',...headers.map((h,i)=>`<option value="${i}">${h}</option>`)].join('');
+  ['map-uf','map-wt','map-date','map-notes','map-lat','map-lon'].forEach(id=>{document.getElementById(id).innerHTML=opts;});
+  headers.forEach((h,i)=>{
+    const hl=h.toLowerCase().replace(/\s+/g,' ').trim();
+    if(/^(uf|u\.f\.?)$|unidad\s*func|^lote$|^parcela$|^parcela\s*n|^n.?mero/.test(hl))  document.getElementById('map-uf').value=i;
+    else if(/^tipo|^trabajo|^obra|^actividad|^rubro|^concep/.test(hl))          document.getElementById('map-wt').value=i;
+    else if(/fecha|date|^dia$|^d.a$|^inicio|^periodo|^mes/.test(hl))            document.getElementById('map-date').value=i;
+    else if(/observ|nota|desc|comentar|detalle|remark/i.test(hl))               document.getElementById('map-notes').value=i;
+    else if(/\blat(itud)?\b/.test(hl))                                           document.getElementById('map-lat').value=i;
+    else if(/\blon(gitud)?\b/.test(hl))                                          document.getElementById('map-lon').value=i;
+  });
+
+  const sampleRows=S.csvRows.slice(0,10);
+  const _hasData=ci=>{
+    if(isNaN(ci)||ci<0)return false;
+    return sampleRows.some(r=>r[ci]&&r[ci].trim());
+  };
+  ['map-uf','map-wt','map-date','map-notes','map-lat','map-lon'].forEach(fid=>{
+    const sel=document.getElementById(fid);
+    if(!sel||sel.value==='')return;
+    const ci=parseInt(sel.value);
+    if(!_hasData(ci)){sel.value='';}
+  });
+
+  const wtSel=document.getElementById('map-wt');
+  const notesSel=document.getElementById('map-notes');
+  if(wtSel&&wtSel.value===''&&notesSel&&notesSel.value!==''){
+    const notesCI=parseInt(notesSel.value);
+    const notesValues=sampleRows.map(r=>r[notesCI]||'').filter(v=>v.trim());
+    const avgLen=notesValues.reduce((s,v)=>s+v.length,0)/(notesValues.length||1);
+    if(notesValues.length>0&&avgLen<40){
+      wtSel.value=notesSel.value;
+      notesSel.value='';
+    }
+  }
+
+  _updateUFPreview();
+  _updateDatePreview();
+  _updateWTPreview();
+
+  const existingCount=S.detections.length;
+  const clearHint=document.getElementById('csv-clear-hint');
+  const clearBtn=document.getElementById('btn-csv-clear');
+  if(existingCount>0){
+    clearHint.style.display='block';
+    clearHint.innerHTML=`<strong>⚠ Ya tenés ${existingCount} registros cargados.</strong><br>
+• <em>Importar (agregar)</em> — suma los nuevos, omite duplicados<br>
+• <em>🗑 Borrar todo e importar</em> — elimina los ${existingCount} registros actuales y reimporta de cero (útil si las fechas o columnas estaban mal)`;
+    clearBtn.style.display='flex';
+  } else {
+    clearHint.style.display='none';
+    clearBtn.style.display='none';
+  }
+  const preview=S.csvRows.slice(0,5);
+  document.getElementById('csv-preview').innerHTML=
+    `<table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead>`+
+    `<tbody>${preview.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  document.getElementById('csv-mapper').style.display='block';
+}
+
+function cancelCSV(){
+  document.getElementById('csv-mapper').style.display='none';
+  document.getElementById('csv-batch-info').style.display='none';
+  S.csvRows=[];S.csvHeaders=[];S.batchFiles=[];S.batchTexts=[];
+}
+
+function _dateFromFilename(fname){
+  if(!fname)return null;
+  const meses={enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,julio:7,agosto:8,septiembre:9,octubre:10,noviembre:11,diciembre:12,
+    jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+  const base=fname.replace(/\.[^.]+$/,'').toLowerCase();
+
+  for(const [name,num] of Object.entries(meses)){
+    const re=new RegExp(`(?:^|[\\s_\\-])(${name})[\\s_\\-]*(\\d{4})(?:[\\s_\\-]|$)|(\\d{4})[\\s_\\-]*(${name})(?:[\\s_\\-]|$)`,'i');
+    const m=re.exec(base);
+    if(m){const y=m[2]||m[3];return`${y}-${String(num).padStart(2,'0')}-01`;}
+  }
+
+  for(const [name,num] of Object.entries(meses)){
+    if(new RegExp(`(?:^|[\\s_\\-])${name}(?:[\\s_\\-]|$)`,'i').test(base)){
+      const ym=base.match(/(20\d{2})/);
+      if(ym){return`${ym[1]}-${String(num).padStart(2,'0')}-01`;}
+    }
+  }
+
+  const nm=/(\d{4})[\-_](\d{2})|(\d{2})[\-_](\d{4})/.exec(base);
+  if(nm){const y=nm[1]||nm[4],m=nm[2]||nm[3];const mn=parseInt(m);if(mn>=1&&mn<=12)return`${y}-${String(mn).padStart(2,'0')}-01`;}
+  return null;
+}
+
+function _normalizeUF(raw){
+  if(!raw)return null;
+  let s=String(raw).trim();
+  if(!s)return null;
+  s=s.replace(/^(u\.?f\.?:?\s*|lote\s*|lt\.?\s*|parcela\s*)/i,'').trim();
+  s=s.replace(/^(\d+)\.0+$/,'$1');
+  if(!/\d/.test(s))return null;
+  if(/^\d+[a-zA-Z]?([\/-]\d+[a-zA-Z]?)*$/.test(s))return s;
+  return null;
+}
+
+function _importRows(rows,ufI,wtI,dateI,notesI,latI,lonI,fallbackDate,replaceDups,useFileDate){
+  let added=0,replaced=0;
+  const reasons={empty:0,badUF:0,dup:0,badUFSamples:[]};
+  const filenameDate=fallbackDate||null; 
+  const batchSeen=new Set();
+  rows.forEach(row=>{
+    const rawUF=(row[ufI]||'').trim();
+    if(!rawUF){reasons.empty++;return;}
+    const ufName=_normalizeUF(rawUF);
+    if(!ufName){
+      reasons.badUF++;
+      if(reasons.badUFSamples.length<5)reasons.badUFSamples.push(`"${rawUF}"`);
+      return;
+    }
+    const dateRaw=dateI>=0?String(row[dateI]||'').trim():'';
+    const date=parseDate(dateRaw)||filenameDate;
+    if(!date){reasons.noDate=(reasons.noDate||0)+1;return;}
+    const wt=(wtI>=0&&row[wtI]||'').trim()||S.workTypes[0];
+    if(wt&&!S.workTypes.includes(wt))S.workTypes.push(wt);
+    let notes=(notesI>=0&&row[notesI]||'').trim();
+    if(useFileDate&&dateI>=0){
+      const origDate=parseDate(String(row[dateI]||'').trim());
+      if(origDate&&origDate!==date) notes=(notes?notes+' — ':'')+'Inicio: '+origDate;
+    }
+    const lat=latI>=0?parseFloat(row[latI])||null:null;
+    const lon=lonI>=0?parseFloat(row[lonI])||null:null;
+    const unit=S.units.find(u=>u.name.toLowerCase()===ufName.toLowerCase())||{id:ufName,name:ufName};
+    const ts=new Date(date).getTime()||Date.now();
+    const dupKey=useFileDate?`${ufName}||${date}`:`${ufName}||${date}||${wt}||${notes}`;
+    if(batchSeen.has(dupKey)){reasons.dup++;return;}
+    batchSeen.add(dupKey);
+    const existIdx=useFileDate
+      ?S.detections.findIndex(d=>d.unitName===ufName&&d.date===date)
+      :S.detections.findIndex(d=>d.unitName===ufName&&d.date===date&&d.workType===wt&&d.notes===(notes||''));
+    const actorName=_currentUser?.name||'Administrador';
+    if(existIdx>=0){
+      if(replaceDups){
+        S.detections[existIdx]={...S.detections[existIdx],lat,lon,datetime:date+'T00:00:00.000Z',ts,
+          updatedBy:actorName,updatedAt:new Date().toISOString()};
+        replaced++;
+      } else {
+        reasons.dup++;
+      }
+      return;
+    }
+    S.detections.push({id:ts+Math.random()*1000|0,unitId:unit.id,unitName:unit.name||ufName,
+      workType:wt,notes,_photo:null,lat,lon,date,datetime:date+'T00:00:00.000Z',ts,
+      createdBy:actorName});
+    added++;
+  });
+  const skipped=reasons.empty+reasons.badUF+reasons.dup+(reasons.noDate||0);
+  return{added,replaced,skipped,reasons};
+}
+
+function importCSVFresh(){
+    customConfirm(`¿Borrar los ${S.detections.length} registros existentes e importar de cero?\nEsta acción no se puede deshacer.`, () => {
+        S.detections=[];
+        importCSV(true);
+    });
+}
+
+function purgePhantomDates(){
+  if(!_hasPerm('deleteAll')){toast('No tenés permiso para borrar datos','err');return;}
+  const today=new Date().toISOString().split('T')[0];
+  const thisYear=today.slice(0,4);
+  const ufHasHistory=new Set();
+  S.detections.forEach(d=>{
+    if(d.date&&d.date.slice(0,4)<thisYear) ufHasHistory.add(d.unitName);
+  });
+  const before=S.detections.length;
+  S.detections=S.detections.filter(d=>{
+    if(d.date===today&&ufHasHistory.has(d.unitName)) return false;
+    return true;
+  });
+  const removed=before-S.detections.length;
+  if(removed===0){
+    toast('No se encontraron registros con fecha incorrecta','ok');
+    return;
+  }
+  saveData();renderDets();renderPolygons();
+  toast(`🧹 ${removed} registro${removed>1?'s':''} con fecha de hoy eliminado${removed>1?'s':''}`,'ok');
+}
+
+function importCSV(forceFresh){
+  if(!_hasPerm('import')){toast('No tenés permiso para importar datos','err');return;}
+  const gi=id=>parseInt(document.getElementById(id).value);
+  const ufI=gi('map-uf'),wtI=gi('map-wt'),dateI=gi('map-date'),notesI=gi('map-notes'),latI=gi('map-lat'),lonI=gi('map-lon');
+  if(isNaN(ufI)){customAlert('Seleccioná la columna de UF');return;}
+  
+  const processImport = () => {
+      let totalAdded=0,totalSkipped=0,filesOk=0;
+      const texts=S.batchTexts.filter(Boolean);
+      if(!texts.length){customAlert('No hay archivos para importar');return;}
+
+      const replaceDups=forceFresh||document.getElementById('csv-replace-dups')?.checked||false;
+      const useFileDate=document.getElementById('csv-use-file-date')?.checked||false;
+      let totalReasons={empty:0,badUF:0,dup:0,noDate:0,badUFSamples:[]};
+      let totalReplaced=0;
+
+      texts.forEach((txt,i)=>{
+        try{
+          const fname=S.batchFiles[i]?S.batchFiles[i].name:'';
+          const fallbackDate=_dateFromFilename(fname)||null; 
+          const{rows}=parseCSV(txt);
+          const effectiveDateI=useFileDate?-1:dateI;
+          const{added,replaced,skipped,reasons}=_importRows(rows,ufI,wtI,effectiveDateI,notesI,latI,lonI,fallbackDate,replaceDups,useFileDate);
+          totalAdded+=added;totalSkipped+=skipped;totalReplaced+=replaced;
+          totalReasons.empty+=reasons.empty;
+          totalReasons.badUF+=reasons.badUF;
+          totalReasons.dup+=reasons.dup;
+          totalReasons.noDate+=(reasons.noDate||0);
+          if(reasons.badUFSamples.length)totalReasons.badUFSamples.push(...reasons.badUFSamples);
+          if(added>0||replaced>0||skipped>0)filesOk++;
+        }catch(_){}
+      });
+
+      S.detections.sort((a,b)=>b.ts-a.ts);
+      saveData();renderDets();renderPolygons();renderWTs();
+
+      const hasIssues=totalReasons.badUF>0||totalReasons.dup>0||totalReasons.noDate>0;
+      const bigDup=!forceFresh&&totalReasons.dup>10&&texts.length>0;
+      
+      if(hasIssues){
+        const samples=totalReasons.badUFSamples.slice(0,5).join(', ');
+        const lines=[
+          `✅ Importados: ${totalAdded}`,
+          totalReplaced?`🔄 Actualizados: ${totalReplaced}`:'',
+          totalReasons.badUF?`⚠️ UF no reconocida: ${totalReasons.badUF}${samples?' (ej: '+samples+')':''}`:'' ,
+          totalReasons.dup?`🔁 Duplicados omitidos: ${totalReasons.dup}`:'',
+          totalReasons.empty?`⬜ Filas vacías: ${totalReasons.empty}`:'',
+          totalReasons.noDate?`📅 Sin fecha determinable (omitidas): ${totalReasons.noDate}\n   → Activá "Usar fecha del archivo" o mapeá la columna Fecha`:'',
+        ].filter(Boolean).join('\n');
+        
+        if(bigDup){
+          const filesWithDates=S.batchFiles.filter(f=>_dateFromFilename(f.name));
+          const canUseFileDate=filesWithDates.length>=1;
+          const fdCheck=document.getElementById('csv-use-file-date');
+          const alreadyUsingFileDate=fdCheck?.checked||false;
+
+          let msg,actionLabel;
+          if(canUseFileDate&&!alreadyUsingFileDate){
+            const dateExamples=filesWithDates.slice(0,2).map(f=>{
+              const d=_dateFromFilename(f.name);
+              const[y,m]=d.split('-');
+              return`${f.name.replace(/\.[^.]+$/,'')} → ${_monthLabel(y+'-'+m)}`;
+            }).join('\n  ');
+            msg=lines+`\n\n──────────────────────────\n📅 Se detectaron fechas en los nombres de archivo:\n  ${dateExamples}\n\nSe activará "Usar fecha del archivo" para registrar la DURACIÓN de cada obra mes a mes (un registro por UF por mes, en lugar de fusionarlos).\n\n¿Borrar los ${S.detections.length} registros actuales y reimportar con seguimiento de duración?`;
+            actionLabel='duracion';
+          } else {
+            msg=lines+`\n\n──────────────────────────\n💡 Los duplicados existen porque ya importaste estos CSV antes.\n\n¿Borrar los ${S.detections.length} registros actuales y reimportar todo de cero?`;
+            actionLabel='simple';
+          }
+
+          customConfirm(msg, () => {
+              S.detections=[];saveData();
+              if(actionLabel==='duracion'&&fdCheck) fdCheck.checked=true;
+              importCSV(true);
+          });
+          return;
+        } else {
+          customAlert(lines);
+        }
+      } else {
+        const parts=[`${totalAdded} importados`];
+        if(totalReplaced)parts.push(`${totalReplaced} actualizados`);
+        if(totalSkipped)parts.push(`${totalSkipped} omitidos`);
+        toast(parts.join(' · '), totalAdded||totalReplaced?'ok':'err');
+      }
+      cancelCSV();
+  }
+
+  if(isNaN(dateI)){
+    const hasFileDate=S.batchFiles.some(f=>_dateFromFilename(f.name));
+    const msg=hasFileDate
+      ?'No mapeaste la columna de Fecha.\nSe usará el mes/año del nombre de cada archivo CSV como fecha.\n¿Continuar?'
+      :'No mapeaste la columna de Fecha y los nombres de archivo no contienen fechas reconocibles.\nLas filas sin fecha serán omitidas.\n¿Continuar?';
+    customConfirm(msg, processImport);
+  } else {
+      processImport();
+  }
+}
+
+/* ═══════════════════════════════════════════
+   GITHUB GIST SYNC
+═══════════════════════════════════════════ */
+const GIST_FILENAME='praderas-obras-data.json';
+
+function _gistToken(){return(document.getElementById('gist-token')?.value||'').trim();}
+function _gistId(){return(document.getElementById('gist-id')?.value||'').trim();}
+function _setGistStatus(msg,color){
+  const el=document.getElementById('gist-status');
+  if(el){el.textContent=msg;el.style.color=color||'var(--muted)';}
+}
+function _saveGistConfig(token,id){
+  const tok=document.getElementById('gist-token');
+  const gid=document.getElementById('gist-id');
+  if(tok&&!tok.value)tok.value=token;
+  if(gid)gid.value=id;
+}
+function _loadGistConfig(){
+    // Kept for UI setup if needed, but no actual persistence
+}
+
+async function syncToGist(){
+  if(!_hasPerm('sync')){toast('No tenés permiso para sincronizar','err');return;}
+  const token=_gistToken();
+  if(!token){customAlert('Ingresá el Token de GitHub');return;}
+  _setGistStatus('⏳ Guardando en Gist…','var(--text-2)');
+  const payload=JSON.stringify({units:S.units,detections:S.detections,workTypes:S.workTypes,users:S.users,savedAt:new Date().toISOString()});
+  try{
+    let gistId=_gistId();
+    let url='https://api.github.com/gists';
+    let method='POST';
+    if(gistId){url=`https://api.github.com/gists/${gistId}`;method='PATCH';}
+    const body={public:false,description:'Praderas Obras — datos sincronizados',files:{[GIST_FILENAME]:{content:payload}}};
+    const resp=await fetch(url,{method,headers:{'Authorization':`token ${token}`,'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(!resp.ok){const err=await resp.json();throw new Error(err.message||resp.status);}
+    const data=await resp.json();
+    const newId=data.id;
+    document.getElementById('gist-id').value=newId;
+    _saveGistConfig(token,newId);
+    const ts=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+    _setGistStatus(`✅ Guardado en Gist a las ${ts}. ID: ${newId}`,'var(--green)');
+    toast('✅ Datos guardados en GitHub Gist');
+  }catch(e){
+    _setGistStatus(`❌ Error: ${e.message}`,'var(--red)');
+    toast('Error al guardar en Gist','err');
+  }
+}
+
+async function syncFromGist(){
+  if(!_hasPerm('sync')){toast('No tenés permiso para sincronizar','err');return;}
+  const token=_gistToken();
+  const gistId=_gistId();
+  if(!token){customAlert('Ingresá el Token de GitHub');return;}
+  if(!gistId){customAlert('Ingresá el Gist ID');return;}
+  _setGistStatus('⏳ Cargando desde Gist…','var(--text-2)');
+  try{
+    const resp=await fetch(`https://api.github.com/gists/${gistId}`,{headers:{'Authorization':`token ${token}`}});
+    if(!resp.ok){const err=await resp.json();throw new Error(err.message||resp.status);}
+    const data=await resp.json();
+    const fileData=data.files?.[GIST_FILENAME];
+    if(!fileData){throw new Error(`No se encontró el archivo "${GIST_FILENAME}" en el Gist`);}
+    let content=fileData.content;
+    if(fileData.truncated){
+      const raw=await fetch(fileData.raw_url);
+      content=await raw.text();
+    }
+    const parsed=JSON.parse(content);
+    const prevCount=S.detections.length;
+    if(parsed.units&&Array.isArray(parsed.units))S.units=parsed.units;
+    if(parsed.detections&&Array.isArray(parsed.detections))S.detections=parsed.detections;
+    if(parsed.workTypes&&Array.isArray(parsed.workTypes))S.workTypes=parsed.workTypes;
+    if(parsed.users&&Array.isArray(parsed.users))S.users=parsed.users;
+    saveData();
+    renderPolygons();renderDets();renderWTs();updateSettingsCount();
+    if(S.units.length)fitToBounds();
+    if(_currentUser){
+      const stillExists=S.users.find(u=>u.id===_currentUser.id);
+      if(stillExists){_currentUser=stillExists;}
+      else{_role='viewer';_currentUser=null;toast('Tu usuario ya no existe en los datos sincronizados — modo visitante','err');}
+    }
+    _applyRole();
+    _saveGistConfig(token,gistId);
+    const savedAt=parsed.savedAt?new Date(parsed.savedAt).toLocaleString('es-AR',{dateStyle:'short',timeStyle:'short'}):'desconocida';
+    _setGistStatus(`✅ Cargados ${S.detections.length} registros (antes: ${prevCount}). Guardado: ${savedAt}`,'var(--green)');
+    toast(`✅ ${S.detections.length} registros cargados desde Gist`);
+  }catch(e){
+    _setGistStatus(`❌ Error: ${e.message}`,'var(--red)');
+    toast('Error al cargar desde Gist','err');
+  }
+}
+
+/* ═══════════════════════════════════════════
+   ROLES / PIN SYSTEM
+═══════════════════════════════════════════ */
+function _hashPIN(pin){
+  let h=0x811c9dc5;
+  for(let i=0;i<pin.length;i++){h^=pin.charCodeAt(i);h=(h*0x01000193)>>>0;}
+  return h.toString(16);
+}
+function _uid(){return 'u_'+Math.random().toString(36).slice(2,10)+Date.now().toString(36);}
+
+const PERM_DEFS=[
+  {key:'edit',       icon:'✏️', label:'Registrar y editar obras'},
+  {key:'import',     icon:'📊', label:'Importar CSV / Excel'},
+  {key:'deleteAll',  icon:'🗑️', label:'Borrar datos masivamente'},
+  {key:'sync',       icon:'☁️', label:'Sincronizar con GitHub'},
+  {key:'manageUsers',icon:'👥', label:'Administrar usuarios'},
+];
+
+let _role='viewer';
+let _currentUser=null;
+
+function _hasUsers(){return !!(S.users&&S.users.length);}
+
+function _findUserByPIN(pin){
+  const h=_hashPIN(pin||'');
+  return (S.users||[]).find(u=>u.pinHash===h)||null;
+}
+
+function _hasPerm(key){
+  if(_role!=='admin')return false;
+  if(!_hasUsers())return true;
+  return !!(_currentUser&&_currentUser.perms&&_currentUser.perms[key]);
+}
+
+function checkPIN(){
+  const v=document.getElementById('lock-pin-input').value;
+  if(!_hasUsers()){enterAdmin(null);return;} 
+  const user=_findUserByPIN(v);
+  if(user){
+    enterAdmin(user);
+  } else {
+    const msg=document.getElementById('lock-msg');
+    msg.style.color='var(--red)';
+    msg.textContent='PIN incorrecto. Intentá de nuevo.';
+    document.getElementById('lock-pin-input').value='';
+    setTimeout(()=>{msg.style.color='';msg.textContent='Ingresá tu PIN personal para editar, o continuá como visitante (solo lectura).';},2000);
+  }
+}
+
+function _postAuthRender(){
+  if(S.units.length){
+    renderPolygons();
+    fitToBounds();
+    const fab=document.getElementById('filter-fab');
+    if(fab)fab.style.display='flex';
+    const kmlSt=document.getElementById('kml-status');
+    if(kmlSt)kmlSt.textContent=`✓ ${S.units.length} unidades funcionales cargadas`;
+  }
+  renderDets();
+}
+
+function enterAdmin(user){
+  _role='admin';
+  _currentUser=user||null;
+  document.getElementById('lock-screen').style.display='none';
+  _applyRole();
+  _postAuthRender();
+}
+
+function enterViewer(){
+  _role='viewer';
+  _currentUser=null;
+  document.getElementById('lock-screen').style.display='none';
+  _applyRole();
+  _postAuthRender();
+}
+
+function _applyRole(){
+  document.querySelectorAll('[data-perm]').forEach(el=>{
+    el.style.display=_hasPerm(el.dataset.perm)?'':'none';
+  });
+  document.querySelectorAll('.admin-only').forEach(el=>{el.style.display=_role==='admin'?'':'none';});
+  const badge=document.getElementById('role-badge');
+  if(badge)badge.textContent=_role==='admin'?(_currentUser?`🔑 ${_currentUser.name}`:'🔑 Admin'):'👁 Visitante';
+  renderUsersUI();
+  renderSessionUI();
+}
+
+function renderSessionUI(){
+  const el=document.getElementById('session-info');
+  if(!el)return;
+  el.innerHTML=_role==='admin'
+    ?`<span style="color:var(--green);font-weight:700">🔑 ${_currentUser?_esc2(_currentUser.name):'Administrador'}</span> <button class="bs" style="margin:0;padding:4px 12px;font-size:12px" onclick="enterViewer()">Cambiar a visitante</button>`
+    :`<span style="color:var(--muted)">👁 Visitante (solo lectura)</span> <button class="bp" style="margin:0;padding:4px 12px;font-size:12px" onclick="_showLock()">Ingresar</button>`;
+}
+
+function renderUsersUI(){
+  const list=document.getElementById('users-list');
+  if(list){
+    if(!S.users.length){
+      list.innerHTML='<div style="font-size:13px;color:var(--muted);text-align:center;padding:12px 0">Sin usuarios — cualquiera que entre como administrador tiene acceso completo. Creá el primer usuario para empezar a limitar permisos.</div>';
+    } else {
+      list.innerHTML=S.users.map(u=>`
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div style="font-weight:700;color:var(--text)">${_esc2(u.name)}${_currentUser?.id===u.id?' <span style="font-size:11px;color:var(--accent);font-weight:400">(vos)</span>':''}</div>
+            <div style="display:flex;gap:6px">
+              <button class="bs" style="margin:0;padding:4px 10px;font-size:11px" onclick="resetUserPIN('${u.id}')">🔑 PIN</button>
+              <button class="bd" style="margin:0;padding:4px 10px;font-size:11px" onclick="removeUser('${u.id}')">🗑️</button>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:5px">
+            ${PERM_DEFS.map(p=>`
+              <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2);cursor:pointer">
+                <input type="checkbox" ${u.perms?.[p.key]?'checked':''} onchange="togglePerm('${u.id}','${p.key}',this.checked)" style="accent-color:var(--accent);width:15px;height:15px">
+                ${p.icon} ${p.label}
+              </label>`).join('')}
+          </div>
+        </div>`).join('');
+    }
+  }
+  const permsBox=document.getElementById('nu-perms');
+  if(permsBox&&!permsBox.dataset.built){
+    permsBox.dataset.built='1';
+    permsBox.innerHTML=PERM_DEFS.map(p=>`
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2);cursor:pointer">
+        <input type="checkbox" id="nu-perm-${p.key}" style="accent-color:var(--accent);width:15px;height:15px">
+        ${p.icon} ${p.label}
+      </label>`).join('');
+  }
+}
+
+function addUser(){
+  const name=document.getElementById('nu-name').value.trim();
+  const pin=document.getElementById('nu-pin').value.trim();
+  if(!name){customAlert('Ingresá un nombre');return;}
+  if(pin.length<4){customAlert('El PIN debe tener al menos 4 caracteres');return;}
+  if(S.users.some(u=>u.name.toLowerCase()===name.toLowerCase())){customAlert('Ya existe un usuario con ese nombre');return;}
+  const perms={};
+  PERM_DEFS.forEach(p=>{perms[p.key]=!!document.getElementById('nu-perm-'+p.key)?.checked;});
+  S.users.push({id:_uid(),name,pinHash:_hashPIN(pin),perms});
+  saveData();
+  document.getElementById('nu-name').value='';
+  document.getElementById('nu-pin').value='';
+  PERM_DEFS.forEach(p=>{const el=document.getElementById('nu-perm-'+p.key);if(el)el.checked=false;});
+  renderUsersUI();
+  toast(`Usuario "${name}" creado ✓`,'ok');
+}
+
+function togglePerm(userId,key,checked){
+  const u=S.users.find(x=>x.id===userId);if(!u)return;
+  if(!u.perms)u.perms={};
+  if(key==='manageUsers'&&!checked){
+    const others=S.users.filter(x=>x.id!==userId&&x.perms?.manageUsers);
+    if(!others.length){
+      customAlert('Debe quedar al menos un usuario con permiso de administrar usuarios');
+      renderUsersUI();
+      return;
+    }
+  }
+  u.perms[key]=checked;
+  saveData();
+  toast('Permisos actualizados','ok');
+}
+
+function resetUserPIN(userId){
+  const u=S.users.find(x=>x.id===userId);if(!u)return;
+  customPrompt(`Nuevo PIN para ${u.name} (4+ caracteres):`, (pin) => {
+      if(pin===null)return;
+      if(pin.trim().length<4){customAlert('El PIN debe tener al menos 4 caracteres');return;}
+      u.pinHash=_hashPIN(pin.trim());
+      saveData();
+      toast(`PIN de ${u.name} actualizado ✓`,'ok');
+  });
+}
+
+function removeUser(userId){
+  const u=S.users.find(x=>x.id===userId);if(!u)return;
+  if(u.perms?.manageUsers){
+    const others=S.users.filter(x=>x.id!==userId&&x.perms?.manageUsers);
+    if(!others.length){customAlert('No podés borrar al único usuario con permiso de administrar usuarios');return;}
+  }
+  customConfirm(`¿Eliminar al usuario "${u.name}"? Ya no podrá ingresar con su PIN.`, () => {
+      S.users=S.users.filter(x=>x.id!==userId);
+      if(_currentUser?.id===userId){
+        _currentUser=null;_role='viewer';
+      }
+      saveData();
+      _applyRole();
+      toast(`Usuario "${u.name}" eliminado`);
+  });
+}
+
+function _syncLockUI(){
+  const hasUsers=_hasUsers();
+  const pinBlock=document.getElementById('lock-pin-block');
+  const noPinBlock=document.getElementById('lock-nopin-block');
+  const lockMsg=document.getElementById('lock-msg');
+  if(hasUsers){
+    if(pinBlock)pinBlock.style.display='flex';
+    if(noPinBlock)noPinBlock.style.display='none';
+    if(lockMsg)lockMsg.textContent='Ingresá tu PIN personal para editar, o continuá como visitante (solo lectura).';
+    const pinInput=document.getElementById('lock-pin-input');
+    if(pinInput)pinInput.value='';
+  } else {
+    if(pinBlock)pinBlock.style.display='none';
+    if(noPinBlock)noPinBlock.style.display='flex';
+    if(lockMsg)lockMsg.textContent='Todavía no hay usuarios configurados. Entrá como administrador y creá el primer usuario en Ajustes.';
+  }
+}
+
+function _showLock(){
+  _syncLockUI();
+  document.getElementById('lock-screen').style.display='flex';
+}
+
+function _initRoles(){
+  _syncLockUI();
+  document.getElementById('lock-screen').style.display='flex';
+  _applyRole();
+}
+
+/* ═══════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════ */
+function init(){
+  applyTheme();
+  loadData();
+
+  const td=new Date().toISOString().split('T')[0];
+  document.getElementById('r-from').value=td;
+  document.getElementById('r-to').value=td;
+
+  initLeafletMap();
+  renderWTs();
+  updateSettingsCount();
+  _initRoles();
+  _initPWA();
+}
+
+function _initPWA() {
+  // Generamos un ícono SVG incrustado para la aplicación
+  const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#0C1B17"/><path d="M160 380V220h80v160h-80zm100 0V140h80v240h-80z" fill="#F5A623"/></svg>`;
+  const iconUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(iconSvg);
+  
+  // Creamos el manifiesto de la aplicación que Android leerá para instalarla
+  const manifest = {
+    name: "Control de Obras Praderas",
+    short_name: "Obras",
+    start_url: location.href.split('?')[0],
+    display: "standalone",
+    background_color: "#0C1B17",
+    theme_color: "#0C1B17",
+    icons: [{ src: iconUrl, sizes: "512x512", type: "image/svg+xml" }]
+  };
+  
+  // Inyectamos el manifiesto en el documento
+  const manifestLink = document.createElement('link');
+  manifestLink.rel = 'manifest';
+  manifestLink.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifest));
+  document.head.appendChild(manifestLink);
+
+  // Registrar un Service Worker básico (requerido por Chrome para PWA)
+  if ('serviceWorker' in navigator) {
+    const sw = `
+      self.addEventListener('install', e => self.skipWaiting());
+      self.addEventListener('activate', e => self.clients.claim());
+      self.addEventListener('fetch', e => {});
+    `;
+    const blob = new Blob([sw], {type: 'application/javascript'});
+    navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
+  }
+
+  // Escuchamos el evento de instalación nativo de Android/Chrome
+  let deferredPrompt;
+  const installCard = document.getElementById('install-card');
+  const btnInstall = document.getElementById('btn-install-app');
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    // Prevenimos que Chrome muestre el mini-infobar por defecto
+    e.preventDefault();
+    // Guardamos el evento para poder dispararlo luego con el botón
+    deferredPrompt = e;
+    // Mostramos nuestra tarjeta de instalación en la sección Ajustes
+    if(installCard) installCard.style.display = 'block';
+  });
+
+  if(btnInstall) {
+    btnInstall.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        // Mostramos el aviso de instalación nativo
+        deferredPrompt.prompt();
+        // Esperamos la respuesta del usuario
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          if(installCard) installCard.style.display = 'none';
+          toast('Instalación iniciada','ok');
+        }
+        deferredPrompt = null;
+      }
+    });
+  }
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
